@@ -1,26 +1,37 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/*
+ * Pixora dizayn tokenlari (Figma "Main page" dan olingan).
+ * Tailwind klasslari orqali ishlatiladi: bg-surface, text-muted, rounded-card va h.k.
+ */
+@theme {
+  --font-sans: var(--font-google-sans), "Google Sans Flex", system-ui, sans-serif;
+  --font-helvetica: "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  --color-page: #f8fafc; /* slate/50 */
+  --color-surface: #ffffff; /* surface-color/white-bgcolor */
+  --color-line: #f1f5f9; /* slate/100 */
+  --color-placeholder: #e2e8f0; /* slate/200 */
+  --color-muted: #90a1b9; /* slate/400 */
+  --color-subtle: #6a7282; /* txt-color/gray-txt-2 */
+  --color-ink: #000000; /* txt-color/black-txt */
+  --color-brand: #0085fe; /* brand-color */
+
+  --color-avatar-blue: #c0d5ff; /* blue/200 */
+  --color-avatar-red: #ffc0c5; /* red/200 */
+  --color-avatar-yellow: #ffecc0; /* yellow/200 */
+
+  --shadow-fancy: 0px 1px 2px 0px rgba(14, 18, 27, 0.24), 0px 0px 0px 1px var(--color-brand);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: var(--color-page);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-page);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  /* Figma'dagi "Google Sans Flex 120pt" optik o'lchami */
+  font-variation-settings: "opsz" 120;
 }
