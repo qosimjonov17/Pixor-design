@@ -28,14 +28,14 @@ export default function WorkCard({ work }: { work: Work }) {
       rel="noopener noreferrer"
       className="group flex min-w-0 flex-col gap-2 outline-none"
     >
-      <div className="relative h-[270px] w-full overflow-hidden rounded-[32px] bg-placeholder transition-shadow group-hover:shadow-[0_8px_24px_rgba(15,23,42,0.08)] group-focus-visible:ring-2 group-focus-visible:ring-brand">
+      <div className="relative h-[270px] w-full overflow-hidden rounded-[32px] bg-placeholder group-focus-visible:ring-2 group-focus-visible:ring-brand">
         {work.image && (
           <Image
             src={work.image}
             alt={work.title}
             fill
             sizes="(min-width: 1024px) 362px, (min-width: 640px) 50vw, 100vw"
-            className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+            className="object-cover"
           />
         )}
       </div>
