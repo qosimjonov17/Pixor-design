@@ -36,7 +36,13 @@ const PAGE_ITEMS: NavItem[] = [
     icon: "/icons/users.svg",
     activeIcon: "/icons/users-active.svg",
   },
-  { id: "leaderboard", href: "/leaderboard", label: "Yetakchilar", icon: "/icons/trophy.svg" },
+  {
+    id: "leaderboard",
+    href: "/leaderboard",
+    label: "Yetakchilar",
+    icon: "/icons/trophy.svg",
+    activeIcon: "/icons/trophy-active.svg",
+  },
 ];
 
 function NavButton({ item, active }: { item: NavItem; active: boolean }) {
