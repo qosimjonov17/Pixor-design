@@ -69,7 +69,7 @@ export default function Sidebar({ active }: { active: NavSection | null }) {
   return (
     <nav
       aria-label="Bo'limlar"
-      className="sticky top-4 flex h-[calc(100dvh-32px)] max-h-[992px] w-[282px] shrink-0 flex-col gap-3 overflow-y-auto rounded-2xl border border-line bg-surface py-5"
+      className="flex h-[calc(100dvh-32px)] max-h-[992px] w-[282px] shrink-0 flex-col gap-3 overflow-y-auto rounded-2xl border border-line bg-surface py-5"
     >
       <div className="flex w-full flex-col gap-3">
         <p className="px-4 text-[18px] leading-[1.25] font-medium text-muted">Bo’limlar</p>
