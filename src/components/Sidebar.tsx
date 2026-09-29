@@ -65,7 +65,7 @@ function NavButton({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export default function Sidebar({ active }: { active: NavSection }) {
+export default function Sidebar({ active }: { active: NavSection | null }) {
   return (
     <nav
       aria-label="Bo'limlar"
@@ -91,7 +91,7 @@ export default function Sidebar({ active }: { active: NavSection }) {
 }
 
 /** Kichik ekranlar uchun: sidebar o'rniga gorizontal suriladigan menyu */
-export function MobileNav({ active }: { active: NavSection }) {
+export function MobileNav({ active }: { active: NavSection | null }) {
   return (
     <nav aria-label="Bo'limlar" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
       {[...PLATFORM_ITEMS, ...PAGE_ITEMS].map((item) => {

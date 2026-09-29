@@ -20,3 +20,8 @@ export function getPlatform(id: Platform): PlatformInfo {
 export function isPlatform(value: unknown): value is Platform {
   return typeof value === "string" && PLATFORMS.some((p) => p.id === value);
 }
+
+/** "Behanceda ko'rish", "Xda ko'rish" ... */
+export function viewOnLabel(id: Platform): string {
+  return `${getPlatform(id).label}da ko’rish`;
+}

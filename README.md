@@ -40,3 +40,28 @@ npm run dev     # saytni http://localhost:3000 da ochadi
 ```
 
 Keyingi bosqichda bu ro'yxat admin panelga ko'chiriladi, shunda kodga tegmasdan ish qo'sha olasiz.
+
+## Kirish (Telegram) va saqlanganlar
+
+Foydalanuvchi faqat Telegram orqali kiradi (OpenID Connect). Saqlangan ishlar Supabase bazasida turadi.
+
+**Bir martalik sozlash**
+
+1. Supabase → **SQL Editor** → New query → `supabase/schema.sql` faylini to'liq joylab **Run** bosing.
+2. Vercel → Settings → Environment Variables:
+
+| Nomi | Qayerdan |
+|---|---|
+| `NEXT_PUBLIC_SITE_URL` | Sayt manzili, masalan `https://pixor-design.vercel.app` (oxirida `/` yo'q) |
+| `NEXT_PUBLIC_SUPABASE_URL` | Supabase → Project Settings → API → Project URL |
+| `SUPABASE_SECRET_KEY` | Supabase → API Keys → secret (`sb_secret_…`) |
+| `AUTH_SESSION_SECRET` | Tasodifiy uzun matn |
+| `TELEGRAM_CLIENT_ID` | @BotFather → Login Widget → Client ID |
+| `TELEGRAM_CLIENT_SECRET` | @BotFather → Login Widget → Client Secret |
+
+3. @BotFather → Login Widget:
+   - Redirect URI: `https://SAYT/auth/telegram/callback`
+   - Trusted Origin: `https://SAYT`
+
+Xatolar Vercel → Logs bo'limida `[auth]` va `[saved]` belgisi bilan ko'rinadi.
+`TELEGRAM_OIDC_BASE` faqat lokal sinov uchun — Vercel'da o'rnatmang.

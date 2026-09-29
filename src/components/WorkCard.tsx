@@ -17,16 +17,16 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export default function WorkCard({ work }: { work: Work }) {
+export default function WorkCard({ work, onOpen }: { work: Work; onOpen: () => void }) {
   const platform = getPlatform(work.platform);
   const { designer } = work;
 
   return (
-    <a
-      href={work.url}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="group flex min-w-0 flex-col gap-2 outline-none"
+    <button
+      type="button"
+      onClick={onOpen}
+      aria-label={`${work.title} — ${designer.name}`}
+      className="group flex min-w-0 cursor-pointer flex-col gap-2 text-left outline-none"
     >
       <div className="relative h-[270px] w-full overflow-hidden rounded-[32px] bg-placeholder group-focus-visible:ring-2 group-focus-visible:ring-brand">
         {work.image && (
@@ -67,6 +67,6 @@ export default function WorkCard({ work }: { work: Work }) {
           </div>
         </div>
       </div>
-    </a>
+    </button>
   );
 }

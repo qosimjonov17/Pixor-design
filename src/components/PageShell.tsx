@@ -1,20 +1,28 @@
 import FancyButton from "@/components/FancyButton";
 import Sidebar, { MobileNav, type NavSection } from "@/components/Sidebar";
+import UserMenu from "@/components/UserMenu";
+import { getSession } from "@/lib/session";
 
 /**
  * Barcha asosiy sahifalar uchun umumiy karkas:
  * chap menyu, "Bepul boshlang!" tugmasi va sarlavha.
  */
-export default function PageShell({
+export default async function PageShell({
   active,
   hero = true,
+  tight = false,
   children,
 }: {
-  active: NavSection;
+  /** Menyuda faol bo'lim; null — hech biri (masalan, Saqlanganlar) */
+  active: NavSection | null;
   /** Sarlavha ("Soatlab qidirmang...") ko'rsatilsinmi. "Tez kunda" sahifalarida yo'q. */
   hero?: boolean;
+  /** Sarlavhasiz, lekin kontent tugmaga yaqin turadigan sahifalar (Saqlanganlar) */
+  tight?: boolean;
   children: React.ReactNode;
 }) {
+  const user = await getSession();
+
   return (
     <div className="mx-auto flex max-w-[1440px] items-start gap-4 p-4">
       <div className="hidden lg:block">
@@ -22,10 +30,10 @@ export default function PageShell({
       </div>
 
       <main
-        className={`flex min-w-0 flex-1 flex-col items-end py-4 ${hero ? "gap-[50px]" : "gap-16 lg:gap-[150px]"}`}
+        className={`flex min-w-0 flex-1 flex-col items-end py-4 ${hero ? "gap-[50px]" : tight ? "gap-8" : "gap-16 lg:gap-[150px]"}`}
       >
         <header className="flex w-full flex-col items-end gap-8">
-          <FancyButton href="/signup">Bepul boshlang!</FancyButton>
+          {user ? <UserMenu user={user} /> : <FancyButton href="/signup">Bepul boshlang!</FancyButton>}
 
           {hero && (
             <div className="flex w-full flex-col items-center gap-4 text-center">
