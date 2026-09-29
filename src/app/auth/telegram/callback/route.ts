@@ -41,7 +41,9 @@ export async function GET(request: NextRequest) {
     await createSession({ id: userId, name: profile.name, username: profile.username, picture: profile.picture });
   } catch (err) {
     console.error(`[auth] Telegram orqali kirish xatosi (${step}):`, err);
-    return fail(`failed&step=${step}`);
+    // Sinov davri: qisqa texnik sabab ham ko'rsatiladi (maxfiy kalitlar bu matnga tushmaydi)
+    const detail = err instanceof Error ? err.message.slice(0, 160) : "";
+    return fail(`failed&step=${step}&detail=${encodeURIComponent(detail)}`);
   }
 
   const res = NextResponse.redirect(new URL(safeNext(flow.next), request.url));

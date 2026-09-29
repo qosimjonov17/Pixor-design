@@ -22,7 +22,8 @@ export default async function SignupPage({ searchParams }: PageProps<"/signup">)
   const step = typeof params.step === "string" ? params.step : null;
   const baseError = typeof params.error === "string" ? ERRORS[params.error] : undefined;
   // Sinov davrida qaysi qadamda to'xtaganini ham ko'rsatamiz
-  const error = baseError && step ? `${baseError} (xato kodi: ${step})` : baseError;
+  const detail = typeof params.detail === "string" ? params.detail : "";
+  const error = baseError && step ? `${baseError} (xato kodi: ${step}${detail ? ` — ${detail}` : ""})` : baseError;
 
   if (await getSession()) redirect(next);
 
