@@ -2,11 +2,11 @@ import type { Platform } from "./platforms";
 
 /**
  * Galereyadagi bitta ish.
- * Hozircha namuna ma'lumotlar. Keyinchalik bu ro'yxat admin panel
- * yoki ma'lumotlar bazasidan keladi — sahifa kodi o'zgarmaydi.
+ * Ishlar Supabase'dagi "works" jadvalidan keladi (Telegram bot orqali qo'shiladi),
+ * ko'rinishga o'tkazish: src/lib/works.ts → toWork().
  */
 export type Work = {
-  /** Doimiy identifikator — "saqlanganlar" bazada shu bilan bog'lanadi, o'zgartirmang */
+  /** works.id (uuid) — "saqlanganlar" shu bilan bog'lanadi */
   id: string;
   title: string;
   platform: Platform;
@@ -25,40 +25,6 @@ export type Work = {
     avatarBg: "blue" | "red" | "yellow";
   };
 };
-
-const arthur = {
-  name: "Abdulloh Qosimjonov",
-  handle: "qosimjonov_abdulloh",
-  avatar: "/avatars/arthur.png",
-  avatarBg: "blue" as const,
-};
-const nuray = { ...arthur, avatar: "/avatars/nuray.png", avatarBg: "red" as const };
-const juma = { ...arthur, avatar: "/avatars/juma.png", avatarBg: "yellow" as const };
-
-const sample = {
-  title: "Bright Future App | Mobile App Design",
-  description:
-    "Bright Future - bu o‘quv markazlari uchun kurslarni boshqarish, o‘zlashtirishni (natijalarni) kuzatib borish va muloqot qilishni osonlashtiruvchi mobil ilova.",
-};
-
-export const WORKS: Work[] = [
-  { id: "1", ...sample, platform: "behance", url: "https://www.behance.net/", designer: arthur },
-  { id: "2", ...sample, platform: "behance", url: "https://www.behance.net/", designer: nuray },
-  { id: "3", ...sample, platform: "behance", url: "https://www.behance.net/", designer: juma },
-  { id: "4", ...sample, platform: "dribbble", url: "https://dribbble.com/", designer: arthur },
-  { id: "5", ...sample, platform: "x", url: "https://x.com/", designer: nuray },
-  { id: "6", ...sample, platform: "dprofile", url: "https://dprofile.ru/", designer: juma },
-  { id: "7", ...sample, platform: "x", url: "https://x.com/", designer: arthur },
-  { id: "8", ...sample, platform: "dribbble", url: "https://dribbble.com/", designer: nuray },
-  { id: "9", ...sample, platform: "behance", url: "https://www.behance.net/", designer: juma },
-  { id: "10", ...sample, platform: "dprofile", url: "https://dprofile.ru/", designer: arthur },
-  { id: "11", ...sample, platform: "x", url: "https://x.com/", designer: nuray },
-  { id: "12", ...sample, platform: "dribbble", url: "https://dribbble.com/", designer: juma },
-];
-
-export function getWork(id: string): Work | undefined {
-  return WORKS.find((w) => w.id === id);
-}
 
 /** Ishni tanlagan kurator (ko'rish oynasining pastidagi "Tanladi:" bloki) */
 export const CURATOR = {

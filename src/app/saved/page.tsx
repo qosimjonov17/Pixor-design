@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import PageShell from "@/components/PageShell";
 import WorkGallery from "@/components/WorkGallery";
-import { getWork, type Work } from "@/data/works";
 import { savedIdsForUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
+import { getPublishedWorksByIds } from "@/lib/works";
 
 export const metadata: Metadata = {
   title: "Saqlanganlar — Pixora",
@@ -15,7 +15,7 @@ export default async function SavedPage() {
   if (!user) redirect("/signup?next=/saved");
 
   const savedIds = await savedIdsForUser(user.id);
-  const works = savedIds.map(getWork).filter((w): w is Work => Boolean(w));
+  const works = await getPublishedWorksByIds(savedIds);
 
   return (
     <PageShell active={null} hero={false} tight>

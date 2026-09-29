@@ -15,7 +15,7 @@ npm run dev     # saytni http://localhost:3000 da ochadi
 
 | Fayl | Nima uchun |
 |---|---|
-| `src/data/works.ts` | Galereyadagi ishlar ro'yxati. Yangi ish qo'shish uchun shu yerga yozasiz |
+| `src/lib/bot.ts` | Telegram bot: havola → preview → sayt + kanal |
 | `src/data/platforms.ts` | Platformalar (X, Behance, Dprofile, Dribbble) va ikonkalari |
 | `src/app/page.tsx` | Bosh sahifa (Main page) |
 | `src/components/Sidebar.tsx` | Chap menyu, mobil versiyada esa filtr qatori |
@@ -24,22 +24,24 @@ npm run dev     # saytni http://localhost:3000 da ochadi
 | `src/app/globals.css` | Ranglar va shriftlar (Figma tokenlari) |
 | `public/icons`, `public/avatars` | Figma'dan olingan ikonka va rasmlar |
 
-## Yangi ish qo'shish
+## Yangi ish qo'shish (Telegram bot)
 
-`src/data/works.ts` fayliga yangi qator qo'shing:
+Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
 
-```ts
-{
-  id: "13",
-  title: "Banking app redesign",
-  platform: "dribbble",               // "x" | "behance" | "dprofile" | "dribbble"
-  url: "https://dribbble.com/shots/...", // asl post
-  image: "/works/banking-app.jpg",     // rasmni public/works/ papkasiga qo'ying
-  designer: { name: "Ism Familiya", avatar: "/avatars/ism.png", avatarBg: "blue" },
-},
-```
+1. Botga Behance / Dribbble / Dprofile / X havolasini yuborasiz.
+2. Bot muqova, nom, tavsif va dizayner ismini oladi va preview ko'rsatadi.
+3. Kerak bo'lsa ✏️ tugmalar bilan tuzatasiz (muqova topilmasa, rasmni o'zingiz yuborasiz).
+4. ✅ Chop etish: ish saytga va kanalga chiqadi. Kanal postining pastida "Pixora'da ko'rish" tugmasi bo'ladi.
 
-Keyingi bosqichda bu ro'yxat admin panelga ko'chiriladi, shunda kodga tegmasdan ish qo'sha olasiz.
+**Bir martalik sozlash**
+
+1. Supabase → SQL Editor: `supabase/002_works.sql` ni ishga tushiring.
+2. Botni kanalga **admin** qilib qo'shing (xabar yuborish huquqi bilan).
+3. Vercel → Environment Variables:
+   - `TELEGRAM_BOT_TOKEN`: BotFather bergan token (Sensitive)
+   - `TELEGRAM_CHANNEL_ID`: masalan `@pixora_uz`
+   - `TELEGRAM_ADMIN_IDS`: botga `/start` yozganda chiqadigan ID (bir nechta bo'lsa vergul bilan)
+4. Redeploy, keyin saytga kirgan holda `https://SAYT/api/telegram/setup` ni oching.
 
 ## Kirish (Telegram) va saqlanganlar
 

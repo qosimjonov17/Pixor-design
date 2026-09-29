@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import WorkCard from "@/components/WorkCard";
 import WorkViewer from "@/components/WorkViewer";
 import type { Work } from "@/data/works";
@@ -10,12 +10,18 @@ export default function WorkGallery({
   works,
   savedIds,
   loggedIn,
+  initialOpenId,
 }: {
   works: Work[];
   savedIds: string[];
   loggedIn: boolean;
+  /** Kanal tugmasidan kelinganda (?w=id) shu ish darhol ochiladi */
+  initialOpenId?: string;
 }) {
-  const [openIndex, setOpenIndex] = useState<number | null>(null);
+  const [openIndex, setOpenIndex] = useState<number | null>(() => {
+    const i = initialOpenId ? works.findIndex((w) => w.id === initialOpenId) : -1;
+    return i >= 0 ? i : null;
+  });
   const [saved, setSaved] = useState(() => new Set(savedIds));
 
   const close = useCallback(() => setOpenIndex(null), []);
@@ -26,6 +32,15 @@ export default function WorkGallery({
   );
 
   const open = openIndex !== null ? works[openIndex] : null;
+
+  // Manzil satrida ?w=id — ochiq ishni havola orqali ulashish mumkin bo'lsin
+  const openId = open?.id;
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    if (openId) url.searchParams.set("w", openId);
+    else url.searchParams.delete("w");
+    window.history.replaceState(window.history.state, "", url);
+  }, [openId]);
 
   return (
     <>

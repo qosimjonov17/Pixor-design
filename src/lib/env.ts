@@ -29,4 +29,24 @@ export const env = {
   get telegramClientSecret() {
     return required("TELEGRAM_CLIENT_SECRET");
   },
+  /** @BotFather → API Token */
+  get botToken() {
+    return required("TELEGRAM_BOT_TOKEN");
+  },
+  /** Kanal: @nik yoki -100... raqami */
+  get channelId() {
+    return required("TELEGRAM_CHANNEL_ID");
+  },
+  /** Botni boshqara oladigan haqiqiy Telegram ID'lar (vergul bilan) */
+  get botAdminIds(): Set<string> {
+    return new Set(
+      (process.env.TELEGRAM_ADMIN_IDS ?? "")
+        .split(/[,\s]+/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    );
+  },
 };
+
+/** Saytdagi admin sahifalar uchun (kirishdagi Telegram ID — users.telegram_id) */
+export const SITE_ADMIN_SUBS = new Set(["4342440248141532524"]);

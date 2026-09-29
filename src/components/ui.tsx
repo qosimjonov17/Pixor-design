@@ -27,7 +27,18 @@ export function PersonRow({
   return (
     <div className="flex w-full items-center gap-3">
       <div className={`relative size-[46px] shrink-0 overflow-hidden rounded-full ${avatarBgClass}`}>
-        {avatar && <Image src={avatar} alt="" fill sizes="46px" className="object-cover" />}
+        {avatar ? (
+          <Image src={avatar} alt="" fill sizes="46px" className="object-cover" />
+        ) : (
+          <span className="flex size-full items-center justify-center text-[15px] font-semibold text-ink/70">
+            {name
+              .split(" ")
+              .map((p) => p[0])
+              .slice(0, 2)
+              .join("")
+              .toUpperCase()}
+          </span>
+        )}
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="truncate text-[16px] leading-[1.4] font-medium text-ink">{name}</p>
