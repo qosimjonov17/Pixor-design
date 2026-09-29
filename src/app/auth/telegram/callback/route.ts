@@ -23,8 +23,11 @@ export async function GET(request: NextRequest) {
   const code = params.get("code");
   if (!flow || !code || params.get("state") !== flow.state) return fail("expired");
 
+  // Har bir qadam alohida: xato bo'lsa, sahifada qaysi qadam ekanligi ko'rinadi
+  let step: "token" | "verify" | "db" | "session" = "token";
   try {
     const idToken = await exchangeCode(code, flow.verifier);
+    step = "verify";
     const claims = await verifyIdToken(idToken, flow.nonce);
     const profile = {
       telegramId: claims.sub,
@@ -32,11 +35,13 @@ export async function GET(request: NextRequest) {
       username: claims.preferred_username ?? null,
       picture: claims.picture ?? null,
     };
+    step = "db";
     const userId = await upsertTelegramUser(profile);
+    step = "session";
     await createSession({ id: userId, name: profile.name, username: profile.username, picture: profile.picture });
   } catch (err) {
-    console.error("[auth] Telegram orqali kirish xatosi:", err);
-    return fail("failed");
+    console.error(`[auth] Telegram orqali kirish xatosi (${step}):`, err);
+    return fail(`failed&step=${step}`);
   }
 
   const res = NextResponse.redirect(new URL(safeNext(flow.next), request.url));

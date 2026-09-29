@@ -19,7 +19,10 @@ const ERRORS: Record<string, string> = {
 export default async function SignupPage({ searchParams }: PageProps<"/signup">) {
   const params = await searchParams;
   const next = safeNext(typeof params.next === "string" ? params.next : null);
-  const error = typeof params.error === "string" ? ERRORS[params.error] : undefined;
+  const step = typeof params.step === "string" ? params.step : null;
+  const baseError = typeof params.error === "string" ? ERRORS[params.error] : undefined;
+  // Sinov davrida qaysi qadamda to'xtaganini ham ko'rsatamiz
+  const error = baseError && step ? `${baseError} (xato kodi: ${step})` : baseError;
 
   if (await getSession()) redirect(next);
 
