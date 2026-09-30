@@ -37,3 +37,6 @@ alter table public.bot_state enable row level security;
 insert into storage.buckets (id, name, public)
 values ('works', 'works', true)
 on conflict (id) do nothing;
+
+-- API jadvallarni darhol ko'rishi uchun
+notify pgrst, 'reload schema';
