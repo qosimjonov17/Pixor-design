@@ -22,6 +22,17 @@ function behanceJson(html){
   var name="";if(n){try{name=JSON.parse('"'+n[1]+'"')}catch(e){name=n[1]}}
   return{designer:name,designerUrl:u?u[1]:"",designerAvatar:best};
 }
+function behanceCover(html){
+  var id=(location.pathname.match(/gallery\/(\d+)/)||[])[1];if(!id)return"";
+  var t=html.replace(/&quot;/g,'"').replace(/\"/g,'"').replace(/\\\//g,"/");
+  var re=new RegExp('"id"\\s*:\\s*'+id+'\\b',"g"),m,best="",rank=99,order=["original","max_808","808","404","230","202"];
+  while((m=re.exec(t))){
+    var c=t.slice(m.index,m.index+30000),r=/https:\/\/mir-s3-cdn-cf\.behance\.net\/projects\/(original|max_808|808|404|230|202)\/[^"'\s\\)]+/g,x;
+    while((x=r.exec(c))){var k=order.indexOf(x[1]);if(k<rank){rank=k;best=x[0]}}
+    if(best)break;
+  }
+  return best;
+}
 function avatarLink(doc,base,re){
   var links=doc.querySelectorAll("a[href]");
   for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;var img=a.querySelector("img");
@@ -36,7 +47,7 @@ if(h==="x.com"||h.indexOf("twitter")>=0){
   return;
 }
 function owner(doc,html){
-  if(h.indexOf("behance")>=0)return merge(avatarLink(doc,href,/behance\.net(:\d+)?\/user\//),behanceJson(html));
+  if(h.indexOf("behance")>=0)return merge(merge(avatarLink(doc,href,/behance\.net(:\d+)?\/user\//),behanceJson(html)),{image:behanceCover(html)});
   if(h.indexOf("dribbble")>=0)return avatarLink(doc,href,/\/avatars\//);
   return{designer:meta(doc,"author")};
 }

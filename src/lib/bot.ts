@@ -356,9 +356,7 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   const chatId = Number(adminId);
 
   const existing = await findWorkBySource(url);
-  if (existing?.status === "published") {
-    return { ok: false, message: "Bu ish allaqachon saytda bor." };
-  }
+  if (existing?.status === "published") return refreshPublishedCover(existing, input.image, chatId);
 
   const clean = (v: string | undefined, n: number) => {
     const t = (v ?? "").replace(/\s+/g, " ").trim();
@@ -393,6 +391,39 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   });
   await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes: [], designer });
   return { ok: true, message: "Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing." };
+}
+
+/**
+ * Saytda turgan ishni tugmacha qayta bosilganda yangilaydi: muqovani almashtiradi
+ * (sayt va kanal postida ham). Nom/dizayner o'zgarmaydi.
+ */
+async function refreshPublishedCover(row: WorkRow, imageUrl: string | undefined, chatId: number) {
+  if (!imageUrl || !/^https?:\/\//i.test(imageUrl)) {
+    return { ok: false as const, message: "Bu ish allaqachon saytda bor (yangi muqova topilmadi)." };
+  }
+  let image: { url: string; path: string } | null = null;
+  try {
+    image = await copyRemoteImage(imageUrl);
+  } catch {
+    image = await copyImageViaTelegram(chatId, imageUrl);
+  }
+  if (!image) return { ok: false as const, message: "Yangi muqovani yuklab bo'lmadi." };
+
+  const oldPath = row.image_path;
+  const updated = await updateWork(row.id, { image_url: image.url, image_path: image.path });
+  await deleteImage(oldPath);
+  revalidatePath("/");
+  revalidatePath("/designers", "layout");
+
+  if (updated.channel_message_id) {
+    await tg("editMessageMedia", {
+      chat_id: env.channelId,
+      message_id: updated.channel_message_id,
+      media: { type: "photo", media: updated.image_url, caption: channelCaption(updated), parse_mode: "HTML" },
+      reply_markup: channelKeyboard(updated),
+    }).catch((err) => console.error("[bot] kanal postini yangilab bo'lmadi:", err));
+  }
+  return { ok: true as const, message: "Bu ish saytda bor edi — muqovasi yangilandi (sayt va kanalda)." };
 }
 
 /**
