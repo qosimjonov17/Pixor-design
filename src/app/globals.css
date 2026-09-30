@@ -5,6 +5,9 @@
  * Tailwind klasslari orqali ishlatiladi: bg-surface, text-muted, rounded-card va h.k.
  */
 @theme {
+  /* Juda keng monitorlar (27"+): 4 ustunli to'r */
+  --breakpoint-3xl: 137.5rem; /* 2200px */
+
   --font-sans: var(--font-google-sans), "Google Sans Flex", system-ui, sans-serif;
   --font-helvetica: "Helvetica Neue", Helvetica, Arial, sans-serif;
 

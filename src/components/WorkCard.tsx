@@ -38,7 +38,7 @@ export default function WorkCard({
       aria-label={`${work.title} — ${designer.name}`}
       className="group flex min-w-0 cursor-pointer flex-col gap-2 text-left outline-none"
     >
-      <div className="relative h-[270px] w-full overflow-hidden rounded-[32px] bg-placeholder group-focus-visible:ring-2 group-focus-visible:ring-brand">
+      <div className="relative aspect-[362/270] w-full overflow-hidden rounded-[32px] bg-placeholder group-focus-visible:ring-2 group-focus-visible:ring-brand">
         {work.video ? (
           <AutoVideo
             src={work.video.url}
@@ -52,7 +52,7 @@ export default function WorkCard({
               src={work.image}
               alt={work.title}
               fill
-              sizes="(min-width: 1024px) 362px, (min-width: 640px) 50vw, 100vw"
+              sizes="(min-width: 2200px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               className="object-cover"
             />
           )

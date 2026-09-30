@@ -28,7 +28,7 @@ export default async function DesignersPage() {
             Tez orada birinchi dizaynerlar qo&apos;shiladi.
           </p>
         ) : (
-          <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-x-3 gap-y-4 sm:grid-cols-2 lg:grid-cols-3 3xl:grid-cols-4">
             {designers.map((designer) => (
               <DesignerCard key={designer.slug} designer={designer} />
             ))}

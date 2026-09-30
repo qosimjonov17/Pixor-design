@@ -57,8 +57,8 @@ export default function DesignerCard({ designer }: { designer: Designer }) {
 
       <div className="flex w-full gap-1.5">
         {previews.map((src, i) => (
-          <div key={i} className="relative h-20 min-w-0 flex-1 overflow-hidden rounded-[10px] bg-thumb">
-            {src && <Image src={src} alt="" fill sizes="110px" className="object-cover" />}
+          <div key={i} className="relative aspect-[110/80] min-w-0 flex-1 overflow-hidden rounded-[10px] bg-thumb">
+            {src && <Image src={src} alt="" fill sizes="(min-width: 1024px) 12vw, 33vw" className="object-cover" />}
           </div>
         ))}
       </div>

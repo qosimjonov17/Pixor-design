@@ -24,7 +24,7 @@ export default async function PageShell({
   const user = await getSession();
 
   return (
-    <div className="mx-auto flex max-w-[1440px] items-start gap-4 p-4">
+    <div className="mx-auto flex max-w-[2880px] items-start gap-4 p-4">
       {/* Menyu scroll paytida ekranda qotib turadi (sticky o'rovchi blokda bo'lishi shart) */}
       <div className="sticky top-4 hidden self-start lg:block">
         <Sidebar active={active} />
