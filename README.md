@@ -43,6 +43,10 @@ Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
    - `TELEGRAM_ADMIN_IDS`: botga `/start` yozganda chiqadigan ID (bir nechta bo'lsa vergul bilan)
 4. Redeploy, keyin saytga kirgan holda `https://SAYT/api/telegram/setup` ni oching.
 
+**Videolar (X)**
+
+Supabase'da `supabase/005_video.sql` ni ishga tushiring. X'dagi video/GIF postlar MP4 bo'lib saqlanadi: ovozsizi kanalga GIF kabi (sendAnimation), ovozlisi video bo'lib chiqadi; saytda o'zi o'ynaydi. 45 MB gacha. `X_SYNDICATION_BASE` va `FXTWITTER_BASE` — faqat lokal sinov uchun, Vercel'da o'rnatilmaydi.
+
 **Dizaynerlar**
 
 Supabase'da `supabase/004_designers.sql` ni ishga tushiring. Har bir ish dizaynerga bog'lanadi (profil havolasi bo'yicha, bo'lmasa ism bo'yicha). Botdagi 👤 Dizayner tugmasi oldingi dizaynerlarni tanlashga beradi. `/designers` va `/designers/{slug}` bazadan chiqadi.

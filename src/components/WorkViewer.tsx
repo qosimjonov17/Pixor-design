@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useEffect, useRef } from "react";
+import { ViewerVideo } from "@/components/AutoVideo";
 import SaveButton from "@/components/SaveButton";
 import { PersonRow, SoftLink } from "@/components/ui";
 import { getPlatform, viewOnLabel } from "@/data/platforms";
@@ -74,7 +75,14 @@ export default function WorkViewer({
 
           {/* Ramka doim 922×690 nisbatda; bo'sh joy va ekran balandligi ruxsat bergancha kattalashadi */}
           <div className="pointer-events-auto relative aspect-[922/690] max-w-[calc((100dvh_-_160px)*922/690)] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder lg:max-w-[calc((100dvh_-_120px)*922/690)]">
-            {work.image && (
+            {work.video ? (
+              <ViewerVideo
+                key={work.id}
+                src={work.video.url}
+                poster={work.image}
+                withSound={work.video.kind === "video"}
+              />
+            ) : work.image && (
               <Image
                 src={work.image}
                 alt={work.title}

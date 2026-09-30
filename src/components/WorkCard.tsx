@@ -1,4 +1,5 @@
 import Image from "next/image";
+import AutoVideo from "@/components/AutoVideo";
 import { getPlatform } from "@/data/platforms";
 import type { Work } from "@/data/works";
 
@@ -29,14 +30,18 @@ export default function WorkCard({ work, onOpen }: { work: Work; onOpen: () => v
       className="group flex min-w-0 cursor-pointer flex-col gap-2 text-left outline-none"
     >
       <div className="relative h-[270px] w-full overflow-hidden rounded-[32px] bg-placeholder group-focus-visible:ring-2 group-focus-visible:ring-brand">
-        {work.image && (
-          <Image
-            src={work.image}
-            alt={work.title}
-            fill
-            sizes="(min-width: 1024px) 362px, (min-width: 640px) 50vw, 100vw"
-            className="object-cover"
-          />
+        {work.video ? (
+          <AutoVideo src={work.video.url} poster={work.image} className="absolute inset-0 size-full object-cover" />
+        ) : (
+          work.image && (
+            <Image
+              src={work.image}
+              alt={work.title}
+              fill
+              sizes="(min-width: 1024px) 362px, (min-width: 640px) 50vw, 100vw"
+              className="object-cover"
+            />
+          )
         )}
       </div>
 

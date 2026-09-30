@@ -5,10 +5,12 @@ import { db } from "./db";
 import { env } from "./env";
 import { recentDesigners, resolveDesigner, getDesignerById, type DesignerRow } from "./designers";
 import { readLinkPreview } from "./mtproto";
+import { fetchXPost, type XPost } from "./x";
 import { detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
-import { downloadTelegramFile, escapeHtml, tg, type InlineKeyboard } from "./telegramBot";
+import { downloadTelegramFile, escapeHtml, tg, tgUpload, type InlineKeyboard } from "./telegramBot";
 import {
   copyRemoteImage,
+  copyRemoteVideo,
   deleteImage,
   findWorkBySource,
   getWorkRow,
@@ -82,8 +84,11 @@ export function channelKeyboard(row: WorkRow): InlineKeyboard {
 /** Preview = kanal posti bilan bir xil matn; pastda faqat adminga eslatmalar */
 function previewCaption(row: WorkRow) {
   const notes: string[] = [];
-  if (!row.image_url) notes.push("⚠️ Muqova yo'q — 🖼 Rasm tugmasini bosib, rasm yuboring.");
+  if (!row.image_url && !row.video_url) notes.push("⚠️ Muqova yo'q — 🖼 Rasm tugmasini bosib, rasm yuboring.");
   if (!row.designer_name || GENERIC_NAMES.test(row.designer_name.trim())) notes.push("⚠️ Dizayner ismi yo'q — 👤 Dizayner tugmasi.");
+  if (row.video_url) {
+    notes.push(row.video_kind === "video" ? "🎬 Video (ovozli) — kanalga video bo'lib chiqadi." : "🎬 Video (ovozsiz) — kanalga GIF kabi chiqadi.");
+  }
   notes.push("Kanalda pastda «Pixora'da ko'rish» tugmasi bo'ladi. Chiqarish uchun ✅ ni bosing.");
   return `${channelCaption(row, 330)}\n\n— — —\n<i>${notes.join("\n")}</i>`;
 }
@@ -112,14 +117,52 @@ async function send(chatId: number, text: string, extra: Record<string, unknown>
   return tg("sendMessage", { chat_id: chatId, text, parse_mode: "HTML", disable_web_page_preview: true, ...extra });
 }
 
+const URL_UPLOAD_LIMIT = 20 * 1024 * 1024;
+
+/**
+ * Ishni media bilan yuboradi: video bo'lsa — ovozsizi GIF kabi (sendAnimation), ovozlisi video;
+ * bo'lmasa rasm. Video yuborilmasa, muqova rasmi bilan yuboriladi.
+ */
+async function sendWorkMedia(chatId: number | string, row: WorkRow, caption: string, reply_markup: InlineKeyboard) {
+  const base = { chat_id: chatId, caption, parse_mode: "HTML", reply_markup };
+  if (row.video_url) {
+    const isVideo = row.video_kind === "video";
+    const method = isVideo ? "sendVideo" : "sendAnimation";
+    const field = isVideo ? "video" : "animation";
+    const extra = isVideo ? { supports_streaming: true } : {};
+    if ((row.video_size ?? 0) <= URL_UPLOAD_LIMIT) {
+      try {
+        return await tg<{ message_id: number }>(method, { ...base, ...extra, [field]: row.video_url });
+      } catch (err) {
+        console.error("[bot] videoni havola bilan yuborib bo'lmadi:", err);
+      }
+    }
+    try {
+      const res = await fetch(row.video_url, { signal: AbortSignal.timeout(30_000) });
+      if (!res.ok) throw new Error(`video o'qilmadi: ${res.status}`);
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      return await tgUpload<{ message_id: number }>(method, { ...base, ...extra }, {
+        field,
+        bytes,
+        name: "pixora.mp4",
+        type: "video/mp4",
+      });
+    } catch (err) {
+      console.error("[bot] videoni fayl sifatida yuborib bo'lmadi:", err);
+    }
+  }
+  if (!row.image_url) throw new Error("Muqova ham, video ham yo'q");
+  return tg<{ message_id: number }>("sendPhoto", { ...base, photo: row.image_url });
+}
+
 async function sendPreview(chatId: number, row: WorkRow) {
   const caption = previewCaption(row);
   const reply_markup = previewKeyboard(row);
-  if (row.image_url) {
+  if (row.image_url || row.video_url) {
     try {
-      return await tg("sendPhoto", { chat_id: chatId, photo: row.image_url, caption, parse_mode: "HTML", reply_markup });
+      return await sendWorkMedia(chatId, row, caption, reply_markup);
     } catch (err) {
-      console.error("[bot] preview rasmi yuborilmadi:", err);
+      console.error("[bot] preview media yuborilmadi:", err);
     }
   }
   return send(chatId, caption, { reply_markup });
@@ -238,21 +281,28 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
 
   await send(chatId, "⏳ Ma'lumot olinmoqda…");
   // Ikki manba parallel: Telegram yasagan preview (bloklanmaydi) va saytning o'zi
-  const [tgp, scraped] = await Promise.all([readLinkPreview(chatId, messageId, url), scrapeUrl(url)]);
+  // X — o'zining ochiq manbasidan (matn, muallif, rasm/video); boshqalar — Telegram preview va sahifa
+  const x = platform === "x" ? await fetchXPost(url) : null;
+  const [tgp, scraped] = x?.post
+    ? [{ preview: null, note: x.note }, null]
+    : await Promise.all([readLinkPreview(chatId, messageId, url), scrapeUrl(url)]);
   const site = scraped?.data;
-  const notes = [tgp.note, ...(scraped?.notes ?? [])];
+  const notes = [...(x && !x.post ? [x.note] : []), tgp.note, ...(scraped?.notes ?? [])];
   const p = tgp.preview;
   const split = p?.title ? splitTitle(platform, p.title) : null;
 
-  const data = {
-    title: split?.title || site?.title || "",
-    description: p?.description || site?.description || null,
-    designerName: split?.designer || site?.designerName || p?.author || null,
-    designerHandle: site?.designerHandle ?? null,
-  };
+  const data = x?.post
+    ? { title: "", description: x.post.text || null, designerName: x.post.name, designerHandle: x.post.handle }
+    : {
+        title: split?.title || site?.title || "",
+        description: p?.description || site?.description || null,
+        designerName: split?.designer || site?.designerName || p?.author || null,
+        designerHandle: site?.designerHandle ?? null,
+      };
 
-  let image: { url: string; path: string } | null = null;
-  if (p?.image) {
+  const xm = x?.post ? await xMedia(x.post, chatId, notes) : null;
+  let image: { url: string; path: string } | null = xm?.image ?? null;
+  if (!image && p?.image) {
     try {
       image = await storeImage(p.image.bytes, p.image.type);
     } catch (err) {
@@ -272,11 +322,37 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
     name: data.designerName,
     platform,
     profileUrl: data.designerHandle ? `/${data.designerHandle}` : null,
+    avatarUrl: x?.post?.avatar,
   }).catch((err) => {
     console.error("[bot] dizaynerni aniqlab bo'lmadi:", err);
     return null;
   });
-  return saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer });
+  return saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer, video: xm?.video });
+}
+
+type StoredVideo = { url: string; path: string; size: number; kind: "animation" | "video" };
+
+/** X postining muqovasi (video kadri yoki rasm) va videosini saqlaydi */
+async function xMedia(post: XPost, chatId: number, notes: string[]) {
+  let image: { url: string; path: string } | null = null;
+  const cover = post.video?.poster ?? post.photo;
+  if (cover) {
+    try {
+      image = await copyRemoteImage(cover);
+    } catch {
+      image = await copyImageViaTelegram(chatId, cover);
+    }
+  }
+  let video: StoredVideo | null = null;
+  if (post.video) {
+    try {
+      const v = await copyRemoteVideo(post.video.urls);
+      video = { url: v.url, path: v.path, size: v.size, kind: post.video.isGif || !v.hasAudio ? "animation" : "video" };
+    } catch (err) {
+      notes.push(`video: ${err instanceof Error ? err.message : "xato"}`);
+    }
+  }
+  return { image, video };
 }
 
 type DraftInput = {
@@ -289,6 +365,7 @@ type DraftInput = {
   image: { url: string; path: string } | null;
   notes: string[];
   designer?: DesignerRow | null;
+  video?: StoredVideo | null;
 };
 
 function designerFields(designer: DesignerRow | null, fallbackName: string | null): Partial<WorkRow> {
@@ -298,7 +375,7 @@ function designerFields(designer: DesignerRow | null, fallbackName: string | nul
 }
 
 /** Qoralamani saqlaydi va adminga preview (tugmalar bilan) yuboradi */
-async function saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer }: DraftInput) {
+async function saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer, video }: DraftInput) {
   const fields = {
     platform,
     title: data.title,
@@ -307,6 +384,10 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
     ...designerFields(designer ?? null, data.designerName),
     image_url: image?.url ?? null,
     image_path: image?.path ?? null,
+    video_url: video?.url ?? null,
+    video_path: video?.path ?? null,
+    video_kind: video?.kind ?? null,
+    video_size: video?.size ?? null,
     created_by_tg: userId,
     status: "draft" as const,
   };
@@ -316,6 +397,7 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
     // Oldin bekor qilingan yoki chala qolgan havola qayta yuborildi
     await clearState(userId);
     await deleteImage(existing.image_path);
+    await deleteImage(existing.video_path ?? null);
     row = await updateWork(existing.id, fields);
   } else {
     row = await insertDraft({ source_url: url, ...fields });
@@ -324,12 +406,12 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
   await sendPreview(chatId, row);
 
   const missing = [
-    !row.image_url && "muqova",
+    !row.image_url && !row.video_url && "muqova",
     !row.title && row.platform !== "x" && "nom",
     !row.designer_name && "dizayner ismi",
   ].filter(Boolean);
   const why = missing.length && notes.length ? `\n<i>(tekshiruv: ${escapeHtml(notes.join(" → "))})</i>` : "";
-  if (!row.image_url) {
+  if (!row.image_url && !row.video_url) {
     await setState(userId, row.id, "image");
     await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.${why}`);
   } else if (missing.length) {
@@ -376,8 +458,18 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
     designerHandle: null,
   };
 
-  let image: { url: string; path: string } | null = null;
-  if (input.image && /^https?:\/\//i.test(input.image)) {
+  // X: video va to'liq ma'lumot X'ning ochiq manbasidan
+  const notes: string[] = [];
+  const x = platform === "x" ? await fetchXPost(url) : null;
+  if (x?.post) {
+    data.description = data.description || x.post.text || null;
+    data.designerName = x.post.name || data.designerName;
+    input.designerAvatar = input.designerAvatar || x.post.avatar || undefined;
+  }
+  const xm = x?.post ? await xMedia(x.post, chatId, notes) : null;
+
+  let image: { url: string; path: string } | null = xm?.image ?? null;
+  if (!image && input.image && /^https?:\/\//i.test(input.image)) {
     try {
       image = await copyRemoteImage(input.image);
     } catch (err) {
@@ -395,7 +487,7 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
     console.error("[bot] dizaynerni aniqlab bo'lmadi:", err);
     return null;
   });
-  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes: [], designer });
+  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes, designer, video: xm?.video });
   return { ok: true, message: "Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing." };
 }
 
@@ -421,7 +513,7 @@ async function refreshPublishedCover(row: WorkRow, imageUrl: string | undefined,
   revalidatePath("/");
   revalidatePath("/designers", "layout");
 
-  if (updated.channel_message_id) {
+  if (updated.channel_message_id && !updated.video_url) {
     await tg("editMessageMedia", {
       chat_id: env.channelId,
       message_id: updated.channel_message_id,
@@ -506,7 +598,16 @@ async function onCallback(cb: TgCallback) {
   if (action === "x") {
     if (row.status === "published") return answer("Allaqachon chop etilgan", true);
     await deleteImage(row.image_path);
-    await updateWork(row.id, { status: "rejected", image_url: null, image_path: null });
+    await deleteImage(row.video_path ?? null);
+    await updateWork(row.id, {
+      status: "rejected",
+      image_url: null,
+      image_path: null,
+      video_url: null,
+      video_path: null,
+      video_kind: null,
+      video_size: null,
+    });
     await clearState(cb.from.id);
     await dropKeyboard();
     await answer("Bekor qilindi");
@@ -515,7 +616,7 @@ async function onCallback(cb: TgCallback) {
 
   if (action === "p") {
     if (row.status === "published") return answer("Allaqachon chop etilgan", true);
-    if (!row.image_url) return answer("Avval muqova rasmini qo'shing (🖼 Rasm)", true);
+    if (!row.image_url && !row.video_url) return answer("Avval muqova rasmini qo'shing (🖼 Rasm)", true);
     if (!row.title && row.platform !== "x") return answer("Avval nom qo'shing (✏️ Nom)", true);
     if (row.platform === "x" && !row.designer_name && !row.description) {
       return answer("Avval dizayner yoki post matnini qo'shing (👤 / 📄)", true);
@@ -525,13 +626,7 @@ async function onCallback(cb: TgCallback) {
     // Avval kanal: u muvaffaqiyatli bo'lsa, saytga ham chiqaramiz (ikkalasi bir xil bo'lsin)
     let channelMessageId: number;
     try {
-      const sent = await tg<{ message_id: number }>("sendPhoto", {
-        chat_id: env.channelId,
-        photo: row.image_url,
-        caption: channelCaption(row),
-        parse_mode: "HTML",
-        reply_markup: channelKeyboard(row),
-      });
+      const sent = await sendWorkMedia(env.channelId, row, channelCaption(row), channelKeyboard(row));
       channelMessageId = sent.message_id;
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

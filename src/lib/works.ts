@@ -15,6 +15,10 @@ export type WorkRow = {
   designer_name: string;
   designer_handle: string | null;
   designer_id: string | null;
+  video_url?: string | null;
+  video_path?: string | null;
+  video_kind?: "animation" | "video" | null;
+  video_size?: number | null;
   status: "draft" | "published" | "rejected";
   created_by_tg: number | null;
   channel_message_id: number | null;
@@ -44,6 +48,7 @@ export function toWork(row: WorkRow, designer?: DesignerLite): Work {
     platform: row.platform,
     url: row.source_url,
     image: row.image_url ?? undefined,
+    video: row.video_url ? { url: row.video_url, kind: row.video_kind ?? "animation" } : undefined,
     description: row.description ?? undefined,
     designer: {
       name,
@@ -144,8 +149,15 @@ export async function updateWork(id: string, fields: Partial<WorkRow>) {
 // ---------- Rasm saqlash (Supabase Storage, "works" bucket) ----------
 
 const BUCKET = "works";
-const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+const EXT: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+  "image/gif": "gif",
+  "video/mp4": "mp4",
+};
 
+/** Faylni (rasm yoki MP4) saqlash joyiga yuklaydi */
 export async function storeImage(bytes: ArrayBuffer | Uint8Array, contentType: string) {
   const type = EXT[contentType] ? contentType : "image/jpeg";
   const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${EXT[type]}`;
@@ -172,4 +184,48 @@ export async function copyRemoteImage(url: string) {
   const bytes = await res.arrayBuffer();
   if (bytes.byteLength > 10 * 1024 * 1024) throw new Error("Rasm juda katta (10 MB dan ortiq)");
   return storeImage(bytes, type);
+}
+
+// ---------- Video ----------
+
+/** Telegram bot 50 MB gacha yubora oladi — biroz zaxira qoldiramiz */
+export const MAX_VIDEO_BYTES = 45 * 1024 * 1024;
+
+/** MP4 ichida ovoz yo'lagi bormi (moov → trak → hdlr "soun") */
+export function mp4HasAudio(bytes: Uint8Array) {
+  const s = Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength).toString("latin1");
+  return /hdlr[\s\S]{8}soun/.test(s);
+}
+
+/**
+ * Tashqi MP4'ni yuklab, saqlash joyimizga ko'chiradi. Bir nechta sifat berilsa,
+ * eng yaxshisidan boshlab hajmga sig'adiganini tanlaydi.
+ */
+export async function copyRemoteVideo(urls: string[]) {
+  let lastError = "video topilmadi";
+  for (const url of urls) {
+    try {
+      const res = await fetch(url, {
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; PixoraBot/1.0)" },
+        signal: AbortSignal.timeout(40_000),
+      });
+      if (!res.ok) throw new Error(`video yuklanmadi: ${res.status}`);
+      const declared = Number(res.headers.get("content-length") ?? 0);
+      if (declared > MAX_VIDEO_BYTES) {
+        lastError = `video juda katta (${Math.round(declared / 1048576)} MB)`;
+        await res.body?.cancel();
+        continue;
+      }
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (bytes.byteLength > MAX_VIDEO_BYTES) {
+        lastError = `video juda katta (${Math.round(bytes.byteLength / 1048576)} MB)`;
+        continue;
+      }
+      const stored = await storeImage(bytes, "video/mp4");
+      return { ...stored, size: bytes.byteLength, hasAudio: mp4HasAudio(bytes) };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+  throw new Error(lastError);
 }

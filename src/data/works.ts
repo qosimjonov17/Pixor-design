@@ -14,6 +14,8 @@ export type Work = {
   url: string;
   /** Ishning preview rasmi. Bo'lmasa kulrang joy ko'rsatiladi. */
   image?: string;
+  /** Video (X'dagi video/GIF postlar). image — uning birinchi kadri (poster). */
+  video?: { url: string; kind: "animation" | "video" };
   /** Ko'rish oynasidagi qisqa tavsif */
   description?: string;
   designer: {

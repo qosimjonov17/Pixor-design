@@ -23,6 +23,32 @@ export async function tg<T = unknown>(method: string, params: Record<string, unk
   return json.result as T;
 }
 
+/**
+ * Faylni to'g'ridan-to'g'ri yuklab yuborish (multipart). URL orqali Telegram faqat 20 MB gacha
+ * oladi, fayl sifatida esa 50 MB gacha.
+ */
+export async function tgUpload<T = unknown>(
+  method: string,
+  params: Record<string, unknown>,
+  file: { field: string; bytes: Uint8Array; name: string; type: string },
+): Promise<T> {
+  const form = new FormData();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    form.append(k, typeof v === "string" ? v : JSON.stringify(v));
+  }
+  form.append(file.field, new Blob([new Uint8Array(file.bytes)], { type: file.type }), file.name);
+  const res = await fetch(`${API_BASE}/bot${env.botToken}/${method}`, {
+    method: "POST",
+    body: form,
+    signal: AbortSignal.timeout(55_000),
+    cache: "no-store",
+  });
+  const json = (await res.json().catch(() => ({}))) as { ok?: boolean; result?: T; description?: string };
+  if (!json.ok) throw new Error(`Telegram ${method}: ${json.description ?? res.status}`);
+  return json.result as T;
+}
+
 /** Telegram'ga yuborilgan rasmni (file_id) yuklab oladi */
 export async function downloadTelegramFile(fileId: string) {
   const file = await tg<{ file_path?: string }>("getFile", { file_id: fileId });
