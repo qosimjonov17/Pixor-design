@@ -277,7 +277,11 @@ export async function scrapeUrl(url: string): Promise<{ data: Scraped; notes: st
   for (const headers of [BROWSER_HEADERS, ...BOT_UAS.map((ua) => ({ "User-Agent": ua, Accept: "text/html" }))]) {
     const { html, note } = await fetchHtml(url, headers);
     notes.push(note);
-    if (html) consider(scrapeFromHtml(platform, url, html));
+    if (html) {
+      const d = scrapeFromHtml(platform, url, html);
+      if (!d.title && !d.image) notes.push("bo'sh sahifa");
+      consider(d);
+    }
     if (score(best) >= 5) break;
   }
   if (score(best) < 5) {

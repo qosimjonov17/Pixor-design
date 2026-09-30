@@ -411,11 +411,16 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
     !row.designer_name && "dizayner ismi",
   ].filter(Boolean);
   const why = missing.length && notes.length ? `\n<i>(tekshiruv: ${escapeHtml(notes.join(" → "))})</i>` : "";
+  // Behance/Dribbble serverlarni bloklaydi — brauzer tugmachasi ishonchli yo'l
+  const hint =
+    missing.length && (platform === "behance" || platform === "dribbble")
+      ? `\n\n💡 ${getPlatform(platform).label} serverlarga ma'lumot bermaydi. Kompyuterda ish sahifasini ochib, brauzerdagi «Pixora'ga qo'shish» tugmachasini bosing: ${env.siteUrl}/admin/add`
+      : "";
   if (!row.image_url && !row.video_url) {
     await setState(userId, row.id, "image");
-    await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.${why}`);
+    await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.${why}${hint}`);
   } else if (missing.length) {
-    await send(chatId, `ℹ️ ${missing.join(", ")} topilmadi — tugmalar orqali qo'shing.${why}`);
+    await send(chatId, `ℹ️ ${missing.join(", ")} topilmadi — tugmalar orqali qo'shing.${why}${hint}`);
   }
   return row;
 }
@@ -429,6 +434,8 @@ export type BrowserCapture = {
   /** Dizaynerning platformadagi profil havolasi */
   designerUrl?: string;
   designerAvatar?: string;
+  /** Sahifadagi video (MP4), masalan Dribbble video shot */
+  video?: string;
 };
 
 /**
@@ -487,7 +494,18 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
     console.error("[bot] dizaynerni aniqlab bo'lmadi:", err);
     return null;
   });
-  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes, designer, video: xm?.video });
+  // Sahifadagi video (Dribbble video shot va h.k.)
+  let video = xm?.video ?? null;
+  if (!video && input.video && /^https?:\/\//i.test(input.video)) {
+    try {
+      const v = await copyRemoteVideo([input.video]);
+      video = { url: v.url, path: v.path, size: v.size, kind: v.hasAudio ? "video" : "animation" };
+    } catch (err) {
+      notes.push(`video: ${err instanceof Error ? err.message : "xato"}`);
+    }
+  }
+
+  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes, designer, video });
   return { ok: true, message: "Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing." };
 }
 

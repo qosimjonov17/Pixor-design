@@ -51,7 +51,13 @@ function owner(doc,html){
   if(h.indexOf("dribbble")>=0)return avatarLink(doc,href,/\/avatars\//);
   return{designer:meta(doc,"author")};
 }
-function base(doc){return{url:href,title:meta(doc,"og:title")||doc.title||"",description:meta(doc,"og:description")||meta(doc,"description"),image:meta(doc,"og:image")||meta(doc,"twitter:image")}}
+function vid(doc){
+  var m=meta(doc,"og:video:secure_url")||meta(doc,"og:video:url")||meta(doc,"og:video");if(/\.mp4(\?|$)/i.test(m))return abs(m,href);
+  var els=doc.querySelectorAll("video,video source");
+  for(var i=0;i<els.length;i++){var e=els[i];if(e.closest("header,nav,footer"))continue;var u=e.getAttribute("src")||e.getAttribute("data-src")||"";if(/\.mp4(\?|$)/i.test(u))return abs(u,href)}
+  return"";
+}
+function base(doc){return{url:href,title:meta(doc,"og:title")||doc.title||"",description:meta(doc,"og:description")||meta(doc,"description"),image:meta(doc,"og:image")||meta(doc,"twitter:image"),video:vid(doc)}}
 fetch(href,{credentials:"include"}).then(function(r){return r.text()}).then(function(html){
   var doc=new DOMParser().parseFromString(html,"text/html");
   var live=owner(document,document.documentElement.innerHTML);
