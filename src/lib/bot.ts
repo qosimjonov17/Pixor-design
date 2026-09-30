@@ -458,10 +458,17 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
     return t ? t.slice(0, n) : null;
   };
   const split = input.title ? splitTitle(platform, input.title) : null;
+  // Sahifa sarlavhasidagi muallif ("… by Ism on Dribbble") eng ishonchli. Sahifadan topilgan
+  // boshqa ismli profil (masalan, saytga kirgan adminning o'zi) bog'lanmaydi.
+  const pageName = clean(input.designer, 120);
+  if (split?.designer && pageName && pageName.toLowerCase() !== split.designer.toLowerCase()) {
+    input.designerUrl = undefined;
+    input.designerAvatar = undefined;
+  }
   const data = {
     title: clean(split?.title, 200) ?? "",
     description: clean(input.description, 1000),
-    designerName: clean(input.designer, 120) ?? split?.designer ?? null,
+    designerName: split?.designer ?? pageName ?? null,
     designerHandle: null,
   };
 

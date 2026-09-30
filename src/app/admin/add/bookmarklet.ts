@@ -33,6 +33,18 @@ function behanceCover(html){
   }
   return best;
 }
+function dribbbleOwner(doc){
+  var t=meta(doc,"og:title").match(/ by (.+?)(?: for .+?)? on Dribbble\s*$/i);var name=t?t[1].trim():"";
+  if(!name){var d=meta(doc,"og:description").match(/designed by (.+?)(?: for |\.|$)/i);name=d?d[1].trim():""}
+  if(!name)return{};
+  var links=doc.querySelectorAll("a[href]"),url="",avatar="";
+  for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;
+    var img=a.querySelector("img"),txt=(a.textContent||"").trim(),alt=img?(img.getAttribute("alt")||"").trim():"";
+    var path=(a.getAttribute("href")||"").replace(/^https?:\/\/dribbble\.com(:\d+)?/,"");
+    if((txt===name||alt===name)&&/^\/[A-Za-z0-9_-]+\/?$/.test(path)){url=abs(path,href);break}}
+  if(url){for(var j=0;j<links.length;j++){var b=links[j],im=b.querySelector("img");if(im&&abs(b.getAttribute("href"),href)===url){avatar=abs(im.getAttribute("src"),href);break}}}
+  return{designer:name,designerUrl:url,designerAvatar:avatar};
+}
 function avatarLink(doc,base,re){
   var links=doc.querySelectorAll("a[href]");
   for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;var img=a.querySelector("img");
@@ -48,7 +60,7 @@ if(h==="x.com"||h.indexOf("twitter")>=0){
 }
 function owner(doc,html){
   if(h.indexOf("behance")>=0)return merge(merge(avatarLink(doc,href,/behance\.net(:\d+)?\/user\//),behanceJson(html)),{image:behanceCover(html)});
-  if(h.indexOf("dribbble")>=0)return avatarLink(doc,href,/\/avatars\//);
+  if(h.indexOf("dribbble")>=0)return dribbbleOwner(doc);
   return{designer:meta(doc,"author")};
 }
 function vid(doc){
