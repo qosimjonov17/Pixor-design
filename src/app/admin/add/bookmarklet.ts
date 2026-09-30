@@ -56,6 +56,15 @@ function dprofileOwner(doc){
     return{designer:name,designerUrl:a?abs(a.getAttribute("href"),href):"",designerAvatar:abs(im.getAttribute("src")||"",href)}}
   return{};
 }
+function behanceDom(doc){
+  var ls=doc.querySelectorAll('a.qa-user-link[href],a[class*="UserInfo-userName"][href]'),a=null;
+  for(var i=0;i<ls.length;i++){if(!ls[i].closest("header,nav")&&(ls[i].textContent||"").trim()){a=ls[i];break}}
+  if(!a)return{};
+  var url=abs(a.getAttribute("href"),href).split("?")[0],av="",ims=doc.querySelectorAll("a[href] img");
+  for(var j=0;j<ims.length;j++){var l=ims[j].closest("a");if(l&&abs(l.getAttribute("href"),href).split("?")[0]===url){av=ims[j].getAttribute("src")||"";break}}
+  if(/pps\.services\.adobe\.com/.test(av))av=av.replace(/\/\d+(\?.*)?$/,"/276");
+  return{designer:(a.textContent||"").trim(),designerUrl:url,designerAvatar:av?abs(av,href):""};
+}
 function avatarLink(doc,base,re){
   var links=doc.querySelectorAll("a[href]");
   for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;var img=a.querySelector("img");
@@ -70,7 +79,7 @@ if(h==="x.com"||h.indexOf("twitter")>=0){
   return;
 }
 function owner(doc,html){
-  if(h.indexOf("behance")>=0)return merge(merge(avatarLink(doc,href,/behance\.net(:\d+)?\/user\//),behanceJson(html)),{image:behanceCover(html)});
+  if(h.indexOf("behance")>=0)return merge(merge(merge(avatarLink(doc,href,/behance\.net(:\d+)?\/user\//),behanceDom(doc)),behanceJson(html)),{image:behanceCover(html)});
   if(h.indexOf("dribbble")>=0)return dribbbleOwner(doc);
   if(h.indexOf("dprofile")>=0)return dprofileOwner(doc);
   return{designer:meta(doc,"author")};
