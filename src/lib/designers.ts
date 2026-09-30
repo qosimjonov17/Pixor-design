@@ -1,9 +1,10 @@
 import "server-only";
 import type { Platform } from "@/data/platforms";
+import { revalidateTag, unstable_cache } from "next/cache";
 import { db } from "./db";
 import { env } from "./env";
 import { copyImageViaTelegram } from "./telegramMedia";
-import { copyRemoteImage, isUuid } from "./works";
+import { copyRemoteImage, isUuid, WORKS_TAG } from "./works";
 
 /** Bazadagi designers qatori */
 export type DesignerRow = {
@@ -82,13 +83,26 @@ export async function getDesignerById(id: string): Promise<DesignerRow | null> {
   return (data as DesignerRow) ?? null;
 }
 
-export async function getDesignerBySlug(slug: string): Promise<DesignerRow | null> {
-  const { data, error } = await db().from("designers").select("*").eq("slug", slug).maybeSingle();
-  if (error) {
-    console.error("[designers] o'qib bo'lmadi:", error.message);
-    return null;
+export const getDesignerBySlug = unstable_cache(
+  async (slug: string): Promise<DesignerRow | null> => {
+    const { data, error } = await db().from("designers").select("*").eq("slug", slug).maybeSingle();
+    if (error) {
+      console.error("[designers] o'qib bo'lmadi:", error.message);
+      return null;
+    }
+    return (data as DesignerRow) ?? null;
+  },
+  ["designer-by-slug-v1"],
+  { tags: [WORKS_TAG], revalidate: 300 },
+);
+
+/** Sayt keshini yangilash (dizayner ma'lumoti o'zgarganda) */
+function refreshSiteCache() {
+  try {
+    revalidateTag(WORKS_TAG, { expire: 0 });
+  } catch (err) {
+    console.error("[designers] keshni yangilab bo'lmadi:", err);
   }
-  return (data as DesignerRow) ?? null;
 }
 
 /** Ism kaliti: belgilar, emoji va katta-kichik harf hisobga olinmaydi ("Rondesignlab ⭐️" = "rondesignlab") */
@@ -129,6 +143,7 @@ async function mergeTwins(target: DesignerRow) {
       continue;
     }
     await db().from("designers").delete().eq("id", twin.id);
+    refreshSiteCache();
     if (twin.avatar_path) await db().storage.from("works").remove([twin.avatar_path]);
   }
 }
@@ -188,8 +203,10 @@ async function resolveDesignerInner(input: DesignerInput): Promise<DesignerRow |
     if (!found.avatar_url && input.avatarUrl) Object.assign(patch, await copyAvatar(input.avatarUrl));
     if (Object.keys(patch).length) {
       const { data, error } = await db().from("designers").update(patch).eq("id", found.id).select("*").single();
-      if (data) found = data as DesignerRow;
-      else if (error && profile && /duplicate|unique|23505/i.test(`${error.code} ${error.message}`)) {
+      if (data) {
+        found = data as DesignerRow;
+        refreshSiteCache();
+      } else if (error && profile && /duplicate|unique|23505/i.test(`${error.code} ${error.message}`)) {
         // Bu profil boshqa yozuvda band — o'sha (profilli) dizaynerni ishlatamiz
         const { data: owner } = await db().from("designers").select("*").eq("profile_url", profile.url).maybeSingle();
         if (owner) return owner as DesignerRow;
@@ -249,7 +266,12 @@ export async function designersByIds(ids: string[]): Promise<Map<string, Designe
 export type DesignerSummary = DesignerRow & { picks: number; previews: string[] };
 
 /** Dizaynerlar sahifasi: kamida bitta chop etilgan ishi bor dizaynerlar, eng faoli birinchi */
-export async function getDesignersWithStats(): Promise<DesignerSummary[]> {
+export const getDesignersWithStats = unstable_cache(loadDesignersWithStats, ["designers-stats-v1"], {
+  tags: [WORKS_TAG],
+  revalidate: 300,
+});
+
+async function loadDesignersWithStats(): Promise<DesignerSummary[]> {
   try {
     const { data, error } = await db()
       .from("works")

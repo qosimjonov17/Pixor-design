@@ -1,5 +1,5 @@
 import "server-only";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { getPlatform, type Platform } from "@/data/platforms";
 import { db } from "./db";
 import { env } from "./env";
@@ -18,6 +18,7 @@ import {
   insertDraft,
   storeImage,
   updateWork,
+  WORKS_TAG,
   type WorkRow,
 } from "./works";
 
@@ -487,6 +488,7 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
         designer_handle: designer.handle,
       });
     }
+    revalidateTag(WORKS_TAG, { expire: 0 });
     revalidatePath("/designers", "layout");
     const cover = await refreshPublishedCover(existing, input.image, chatId);
     return { ok: cover.ok, message: `${cover.message}\n${designerReport(designer, input, designerError)}` };
@@ -593,7 +595,8 @@ async function refreshPublishedCover(row: WorkRow, imageUrl: string | undefined,
   const oldPath = row.image_path;
   const updated = await updateWork(row.id, { image_url: image.url, image_path: image.path });
   await deleteImage(oldPath);
-  revalidatePath("/");
+  revalidateTag(WORKS_TAG, { expire: 0 });
+    revalidatePath("/");
   revalidatePath("/designers", "layout");
 
   if (updated.channel_message_id && !updated.video_url) {
@@ -702,6 +705,7 @@ async function onCallback(cb: TgCallback) {
       published_at: new Date().toISOString(),
       channel_message_id: channelMessageId,
     });
+    revalidateTag(WORKS_TAG, { expire: 0 });
     revalidatePath("/");
     revalidatePath("/designers", "layout");
     await clearState(cb.from.id);

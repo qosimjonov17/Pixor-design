@@ -1,5 +1,6 @@
 import Image from "next/image";
 import AutoVideo from "@/components/AutoVideo";
+import { CARD_IMAGE_SIZES, optimizedImageUrl } from "@/data/media";
 import { getPlatform } from "@/data/platforms";
 import type { Work } from "@/data/works";
 
@@ -42,7 +43,7 @@ export default function WorkCard({
         {work.video ? (
           <AutoVideo
             src={work.video.url}
-            poster={work.image}
+            poster={optimizedImageUrl(work.image, 828)}
             active={playVideo}
             className="absolute inset-0 size-full object-cover"
           />
@@ -52,7 +53,7 @@ export default function WorkCard({
               src={work.image}
               alt={work.title}
               fill
-              sizes="(min-width: 2200px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              sizes={CARD_IMAGE_SIZES}
               className="object-cover"
             />
           )

@@ -1,6 +1,7 @@
 import "server-only";
 import type { Platform } from "@/data/platforms";
 import type { Work } from "@/data/works";
+import { unstable_cache } from "next/cache";
 import { db } from "./db";
 
 /** Bazadagi works qatori */
@@ -72,23 +73,27 @@ async function withDesigners(rows: WorkRow[]): Promise<Work[]> {
   return rows.map((r) => toWork(r, r.designer_id ? map.get(r.designer_id) : undefined));
 }
 
-/** Saytda ko'rinadigan (chop etilgan) ishlar, eng yangisi birinchi */
-export async function getPublishedWorks(
-  platform?: Platform | null,
-  designerId?: string,
-): Promise<Work[]> {
-  try {
-    let q = db().from("works").select("*").eq("status", "published").order("published_at", { ascending: false });
-    if (platform) q = q.eq("platform", platform);
-    if (designerId) q = q.eq("designer_id", designerId);
-    const { data, error } = await q.limit(500);
-    if (error) throw new Error(error.message);
-    return await withDesigners(data as WorkRow[]);
-  } catch (err) {
-    console.error("[works] ro'yxatni o'qib bo'lmadi:", err);
-    return [];
-  }
-}
+/** Kesh yorlig'i: bot ish chiqarganda/yangilaganda shu yorliq bo'yicha kesh tozalanadi */
+export const WORKS_TAG = "works";
+
+/** Saytda ko'rinadigan (chop etilgan) ishlar, eng yangisi birinchi (bazadan emas, keshdan) */
+export const getPublishedWorks = unstable_cache(
+  async (platform?: Platform | null, designerId?: string): Promise<Work[]> => {
+    try {
+      let q = db().from("works").select("*").eq("status", "published").order("published_at", { ascending: false });
+      if (platform) q = q.eq("platform", platform);
+      if (designerId) q = q.eq("designer_id", designerId);
+      const { data, error } = await q.limit(500);
+      if (error) throw new Error(error.message);
+      return await withDesigners(data as WorkRow[]);
+    } catch (err) {
+      console.error("[works] ro'yxatni o'qib bo'lmadi:", err);
+      return [];
+    }
+  },
+  ["published-works-v1"],
+  { tags: [WORKS_TAG], revalidate: 300 },
+);
 
 export async function getPublishedWorksByIds(ids: string[]): Promise<Work[]> {
   const valid = ids.filter(isUuid);

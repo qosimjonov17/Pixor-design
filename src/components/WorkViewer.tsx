@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ViewerVideo } from "@/components/AutoVideo";
+import { CARD_IMAGE_SIZES, optimizedImageUrl } from "@/data/media";
 import SaveButton from "@/components/SaveButton";
 import { PersonRow, SoftLink } from "@/components/ui";
 import { getPlatform, viewOnLabel } from "@/data/platforms";
@@ -89,19 +90,24 @@ export default function WorkViewer({
               <ViewerVideo
                 key={work.id}
                 src={work.video.url}
-                poster={work.image}
+                poster={optimizedImageUrl(work.image, 1920)}
                 withSound={work.video.kind === "video"}
                 onRatio={onVideoRatio}
               />
             ) : work.image && (
-              <Image
-                src={work.image}
-                alt={work.title}
-                fill
-                sizes="(min-width: 1024px) 75vw, 100vw"
-                className="object-cover"
-                priority
-              />
+              <>
+                {/* Kartada allaqachon yuklangan rasm — darhol ko'rinadi, katta rasm ustiga yuklanadi */}
+                <Image src={work.image} alt="" aria-hidden fill sizes={CARD_IMAGE_SIZES} className="object-cover" />
+                <Image
+                  key={work.id}
+                  src={work.image}
+                  alt={work.title}
+                  fill
+                  sizes="(min-width: 1024px) 75vw, 100vw"
+                  className="object-cover"
+                  priority
+                />
+              </>
             )}
           </div>
 
