@@ -105,6 +105,7 @@ export default function WorkViewer({
                 handle={work.designer.handle}
                 avatar={work.designer.avatar}
                 avatarBgClass={AVATAR_BG[work.designer.avatarBg]}
+                href={work.designer.slug ? `/designers/${work.designer.slug}` : undefined}
               />
               <SoftLink href={work.url}>{viewOnLabel(work.platform)}</SoftLink>
             </div>

@@ -1,4 +1,6 @@
 import Image from "next/image";
+import Link from "next/link";
+import { initials } from "@/data/designers";
 
 /** Figma'dagi "Fancy Buttons" — Basic (oq) turi */
 export const softButtonClass =
@@ -18,25 +20,27 @@ export function PersonRow({
   handle,
   avatar,
   avatarBgClass = "",
+  href,
 }: {
   name: string;
   handle?: string;
   avatar?: string;
   avatarBgClass?: string;
+  /** Berilsa, butun qator shu sahifaga havola bo'ladi (dizayner profili) */
+  href?: string;
 }) {
+  const Wrapper = href ? Link : "div";
   return (
-    <div className="flex w-full items-center gap-3">
+    <Wrapper
+      href={href as string}
+      className={`flex w-full items-center gap-3 ${href ? "rounded-xl outline-none hover:opacity-80 focus-visible:ring-2 focus-visible:ring-brand" : ""}`}
+    >
       <div className={`relative size-[46px] shrink-0 overflow-hidden rounded-full ${avatarBgClass}`}>
         {avatar ? (
           <Image src={avatar} alt="" fill sizes="46px" className="object-cover" />
         ) : (
           <span className="flex size-full items-center justify-center text-[15px] font-semibold text-ink/70">
-            {name
-              .split(" ")
-              .map((p) => p[0])
-              .slice(0, 2)
-              .join("")
-              .toUpperCase()}
+            {initials(name)}
           </span>
         )}
       </div>
@@ -44,6 +48,6 @@ export function PersonRow({
         <p className="truncate text-[16px] leading-[1.4] font-medium text-ink">{name}</p>
         {handle && <p className="truncate text-[12px] leading-[1.4] text-subtle">@{handle}</p>}
       </div>
-    </div>
+    </Wrapper>
   );
 }

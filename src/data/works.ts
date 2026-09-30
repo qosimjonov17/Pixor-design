@@ -21,6 +21,8 @@ export type Work = {
     /** Platformadagi nik (@ belgisisiz) */
     handle?: string;
     avatar?: string;
+    /** Saytdagi dizayner sahifasi: /designers/{slug} */
+    slug?: string;
     /** Avatar orqa foni: dizayndagi blue/red/yellow 200 */
     avatarBg: "blue" | "red" | "yellow";
   };

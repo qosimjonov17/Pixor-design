@@ -1,16 +1,16 @@
 import type { Platform } from "./platforms";
 
 /**
- * Dizayner profili.
- * Hozircha namuna ma'lumotlar — keyinchalik admin panel / bazadan keladi.
+ * Dizaynerlar sahifasidagi karta ma'lumoti.
+ * Dizaynerlar Supabase'dagi "designers" jadvalidan keladi (bot ish qo'shganda yaratiladi).
  */
 export type Designer = {
   /** Saytdagi profil manzili: /designers/{slug} */
   slug: string;
   name: string;
-  /** Asosiy platformadagi nik (@ belgisisiz) */
-  handle: string;
-  platform: Platform;
+  /** Platformadagi nik (@ belgisisiz) */
+  handle?: string;
+  platform?: Platform;
   /** Pixora'ga tanlangan ishlari soni */
   picks: number;
   avatar?: string;
@@ -19,22 +19,20 @@ export type Designer = {
   previews: string[];
 };
 
-const AVATARS = [
-  { avatar: "/avatars/arthur.png", avatarBg: "blue" as const },
-  { avatar: "/avatars/nuray.png", avatarBg: "red" as const },
-  { avatar: "/avatars/juma.png", avatarBg: "yellow" as const },
-];
+const AVATAR_BGS = ["blue", "red", "yellow"] as const;
 
-export const DESIGNERS: Designer[] = Array.from({ length: 12 }, (_, i) => ({
-  slug: `qosimjonov_abdulloh_${i + 1}`,
-  name: "Abdulloh Qosimjonov",
-  handle: "qosimjonov_abdulloh",
-  platform: "behance" as const,
-  picks: 14,
-  ...AVATARS[i % AVATARS.length],
-  previews: [],
-}));
+export function avatarBgFor(name: string) {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return AVATAR_BGS[h % AVATAR_BGS.length];
+}
 
-export function getDesigner(slug: string): Designer | undefined {
-  return DESIGNERS.find((d) => d.slug === slug);
+export function initials(name: string) {
+  return name
+    .split(/\s+/)
+    .map((p) => [...p][0] ?? "")
+    .filter((c) => /\p{L}|\p{N}/u.test(c))
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
 }

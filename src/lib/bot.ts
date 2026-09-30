@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { getPlatform, type Platform } from "@/data/platforms";
 import { db } from "./db";
 import { env } from "./env";
+import { recentDesigners, resolveDesigner, getDesignerById, type DesignerRow } from "./designers";
 import { readLinkPreview } from "./mtproto";
 import { detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
 import { downloadTelegramFile, escapeHtml, tg, type InlineKeyboard } from "./telegramBot";
@@ -41,7 +42,7 @@ type Field = "title" | "designer" | "description" | "image";
 
 const FIELD_PROMPTS: Record<Field, string> = {
   title: "✏️ Yangi <b>nom</b>ni yozing:",
-  designer: "👤 Dizayner <b>ismi</b>ni yozing:",
+  designer: "👤 Dizayner <b>ismi</b>ni yozing (shu nomdagi dizayner bo'lsa, ishi unga qo'shiladi):",
   description: "📄 Yangi <b>tavsif</b>ni yozing (o'chirish uchun <code>-</code> yuboring):",
   image: "🖼 Muqova uchun <b>rasm</b> yuboring (rasm sifatida, fayl emas):",
 };
@@ -201,12 +202,14 @@ async function onMessage(msg: TgMessage) {
     const row = await getWorkRow(state.work_id);
     if (!row) return clearState(userId);
     const value = text.slice(0, state.awaiting === "description" ? 1000 : 200);
-    const fields: Partial<WorkRow> =
-      state.awaiting === "title"
-        ? { title: value }
-        : state.awaiting === "designer"
-          ? { designer_name: value }
-          : { description: value === "-" ? null : value };
+    let fields: Partial<WorkRow>;
+    if (state.awaiting === "designer") {
+      // Yozilgan ism: shu nomli dizayner bo'lsa unga bog'lanadi, bo'lmasa yangisi yaratiladi
+      const designer = await resolveDesigner({ name: value, platform: row.platform });
+      fields = designerFields(designer, value);
+    } else {
+      fields = state.awaiting === "title" ? { title: value } : { description: value === "-" ? null : value };
+    }
     const updated = await updateWork(row.id, fields);
     await clearState(userId);
     return sendPreview(msg.chat.id, updated);
@@ -263,7 +266,15 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
     }
   }
 
-  return saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes });
+  const designer = await resolveDesigner({
+    name: data.designerName,
+    platform,
+    profileUrl: data.designerHandle ? `/${data.designerHandle}` : null,
+  }).catch((err) => {
+    console.error("[bot] dizaynerni aniqlab bo'lmadi:", err);
+    return null;
+  });
+  return saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer });
 }
 
 type DraftInput = {
@@ -275,16 +286,23 @@ type DraftInput = {
   data: { title: string; description: string | null; designerName: string | null; designerHandle: string | null };
   image: { url: string; path: string } | null;
   notes: string[];
+  designer?: DesignerRow | null;
 };
 
+function designerFields(designer: DesignerRow | null, fallbackName: string | null): Partial<WorkRow> {
+  return designer
+    ? { designer_id: designer.id, designer_name: designer.name, designer_handle: designer.handle }
+    : { designer_id: null, designer_name: fallbackName ?? "" };
+}
+
 /** Qoralamani saqlaydi va adminga preview (tugmalar bilan) yuboradi */
-async function saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes }: DraftInput) {
+async function saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer }: DraftInput) {
   const fields = {
     platform,
     title: data.title,
     description: data.description,
-    designer_name: data.designerName ?? "",
     designer_handle: data.designerHandle,
+    ...designerFields(designer ?? null, data.designerName),
     image_url: image?.url ?? null,
     image_path: image?.path ?? null,
     created_by_tg: userId,
@@ -320,6 +338,9 @@ export type BrowserCapture = {
   description?: string;
   image?: string;
   designer?: string;
+  /** Dizaynerning platformadagi profil havolasi */
+  designerUrl?: string;
+  designerAvatar?: string;
 };
 
 /**
@@ -361,7 +382,16 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
     }
   }
 
-  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes: [] });
+  const designer = await resolveDesigner({
+    name: data.designerName,
+    platform,
+    profileUrl: input.designerUrl ?? (platform === "x" || platform === "dprofile" ? input.url : null),
+    avatarUrl: input.designerAvatar,
+  }).catch((err) => {
+    console.error("[bot] dizaynerni aniqlab bo'lmadi:", err);
+    return null;
+  });
+  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes: [], designer });
   return { ok: true, message: "Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing." };
 }
 
@@ -394,6 +424,23 @@ async function onCallback(cb: TgCallback) {
   if (!isAdmin(cb.from.id)) return answer("Ruxsat yo'q", true);
   const chatId = cb.message?.chat.id;
   const [action, a, b] = (cb.data ?? "").split(":");
+
+  // Dizayner tanlash (ro'yxatdan) yoki yangi ism yozish
+  if (action === "ds" || action === "dn") {
+    const state = await getState(cb.from.id);
+    const work = state?.awaiting === "designer" ? await getWorkRow(state.work_id) : null;
+    if (!work || !chatId) return answer("Avval preview'dagi 👤 Dizayner tugmasini bosing", true);
+    if (action === "dn") {
+      await answer();
+      return send(chatId, FIELD_PROMPTS.designer);
+    }
+    const designer = await getDesignerById(a ?? "");
+    if (!designer) return answer("Dizayner topilmadi", true);
+    const updated = await updateWork(work.id, designerFields(designer, null));
+    await clearState(cb.from.id);
+    await answer(designer.name);
+    return sendPreview(chatId, updated);
+  }
   const workId = action === "e" ? b : a;
   const row = await getWorkRow(workId ?? "");
   if (!row || !chatId) return answer("Ish topilmadi", true);
@@ -408,6 +455,14 @@ async function onCallback(cb: TgCallback) {
     if (!(field in FIELD_PROMPTS)) return answer();
     await setState(cb.from.id, row.id, field);
     await answer();
+    if (field === "designer") {
+      const list = await recentDesigners(8);
+      if (list.length) {
+        const rows = list.map((d) => [{ text: `👤 ${clip(d.name, 40)}`, callback_data: `ds:${d.id}` }]);
+        rows.push([{ text: "✍️ Yangi ism yozish", callback_data: "dn" }]);
+        return send(chatId, "👤 Dizaynerni tanlang yoki yangi ism yozing:", { reply_markup: { inline_keyboard: rows } });
+      }
+    }
     return send(chatId, FIELD_PROMPTS[field]);
   }
 
@@ -452,6 +507,7 @@ async function onCallback(cb: TgCallback) {
       channel_message_id: channelMessageId,
     });
     revalidatePath("/");
+    revalidatePath("/designers", "layout");
     await clearState(cb.from.id);
     await dropKeyboard();
     return send(chatId, `✅ Chop etildi — saytda va kanalda.\n${siteWorkUrl(published.id)}`);

@@ -43,6 +43,10 @@ Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
    - `TELEGRAM_ADMIN_IDS`: botga `/start` yozganda chiqadigan ID (bir nechta bo'lsa vergul bilan)
 4. Redeploy, keyin saytga kirgan holda `https://SAYT/api/telegram/setup` ni oching.
 
+**Dizaynerlar**
+
+Supabase'da `supabase/004_designers.sql` ni ishga tushiring. Har bir ish dizaynerga bog'lanadi (profil havolasi bo'yicha, bo'lmasa ism bo'yicha). Botdagi 👤 Dizayner tugmasi oldingi dizaynerlarni tanlashga beradi. `/designers` va `/designers/{slug}` bazadan chiqadi.
+
 **Behance kabi bloklovchi saytlar uchun: brauzer tugmachasi**
 
 Behance serverlarni bloklaydi. Kompyuterda `https://SAYT/admin/add` sahifasini oching (admin sifatida kirgan holda), «Pixora'ga qo'shish» tugmasini xatcho'plar paneliga sudrang. Keyin istalgan ish sahifasida shu tugmani bosing — ish botga preview bo'lib keladi.

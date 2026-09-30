@@ -1,0 +1,215 @@
+import "server-only";
+import type { Platform } from "@/data/platforms";
+import { db } from "./db";
+import { copyRemoteImage, isUuid } from "./works";
+
+/** Bazadagi designers qatori */
+export type DesignerRow = {
+  id: string;
+  slug: string;
+  name: string;
+  platform: Platform | null;
+  profile_url: string | null;
+  handle: string | null;
+  avatar_url: string | null;
+  avatar_path: string | null;
+  created_at: string;
+};
+
+const PROFILE_HOSTS: Record<Platform, string> = {
+  behance: "https://www.behance.net",
+  dribbble: "https://dribbble.com",
+  x: "https://x.com",
+  dprofile: "https://dprofile.ru",
+};
+
+const RESERVED = new Set(["gallery", "shots", "search", "i", "status", "case", "work", "project", "about", "explore"]);
+
+/** Profil havolasini bir xil ko'rinishga keltiradi: https://www.behance.net/username */
+export function normalizeProfileUrl(platform: Platform, raw: string | null | undefined) {
+  if (!raw) return null;
+  try {
+    const u = new URL(raw, PROFILE_HOSTS[platform]);
+    const first = u.pathname.split("/").filter(Boolean)[0];
+    if (!first || RESERVED.has(first.toLowerCase())) return null;
+    const handle = decodeURIComponent(first).replace(/^@/, "").toLowerCase();
+    if (!/^[a-z0-9._-]{1,60}$/.test(handle)) return null;
+    return { url: `${PROFILE_HOSTS[platform]}/${handle}`, handle };
+  } catch {
+    return null;
+  }
+}
+
+/** "Rondesignlab ⭐" → "rondesignlab" */
+export function slugify(s: string) {
+  const base = s
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[ʻʼ'’`]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+  return base || "dizayner";
+}
+
+function cleanName(s: string) {
+  return s.replace(/\s+/g, " ").trim().slice(0, 120);
+}
+
+async function uniqueSlug(base: string) {
+  for (let i = 0; i < 50; i++) {
+    const slug = i === 0 ? base : `${base}-${i + 1}`;
+    const { data } = await db().from("designers").select("id").eq("slug", slug).maybeSingle();
+    if (!data) return slug;
+  }
+  return `${base}-${crypto.randomUUID().slice(0, 6)}`;
+}
+
+export async function getDesignerById(id: string): Promise<DesignerRow | null> {
+  if (!isUuid(id)) return null;
+  const { data } = await db().from("designers").select("*").eq("id", id).maybeSingle();
+  return (data as DesignerRow) ?? null;
+}
+
+export async function getDesignerBySlug(slug: string): Promise<DesignerRow | null> {
+  const { data, error } = await db().from("designers").select("*").eq("slug", slug).maybeSingle();
+  if (error) {
+    console.error("[designers] o'qib bo'lmadi:", error.message);
+    return null;
+  }
+  return (data as DesignerRow) ?? null;
+}
+
+async function findByName(name: string): Promise<DesignerRow | null> {
+  const { data } = await db().from("designers").select("*").ilike("name", name.replace(/[%_]/g, "\\$&")).limit(1);
+  return ((data as DesignerRow[] | null) ?? [])[0] ?? null;
+}
+
+/** Bot tugmalari uchun: oxirgi qo'shilgan dizaynerlar */
+export async function recentDesigners(limit = 8): Promise<DesignerRow[]> {
+  const { data } = await db().from("designers").select("*").order("created_at", { ascending: false }).limit(limit);
+  return (data as DesignerRow[] | null) ?? [];
+}
+
+export type DesignerInput = {
+  name?: string | null;
+  platform: Platform;
+  profileUrl?: string | null;
+  avatarUrl?: string | null;
+};
+
+/**
+ * Dizaynerni topadi yoki yaratadi.
+ * Avval profil havolasi bo'yicha (eng ishonchli), keyin ism bo'yicha qidiradi.
+ */
+export async function resolveDesigner(input: DesignerInput): Promise<DesignerRow | null> {
+  const profile = normalizeProfileUrl(input.platform, input.profileUrl);
+  const name = input.name ? cleanName(input.name) : "";
+  if (!profile && !name) return null;
+
+  let found: DesignerRow | null = null;
+  if (profile) {
+    const { data } = await db().from("designers").select("*").eq("profile_url", profile.url).maybeSingle();
+    found = (data as DesignerRow) ?? null;
+  }
+  if (!found && name) {
+    const byName = await findByName(name);
+    // Ism bir xil, lekin boshqa profil — boshqa odam bo'lishi mumkin
+    if (byName && (!profile || !byName.profile_url)) found = byName;
+  }
+
+  if (found) {
+    const patch: Partial<DesignerRow> = {};
+    if (profile && !found.profile_url) {
+      patch.profile_url = profile.url;
+      patch.handle = profile.handle;
+      patch.platform = input.platform;
+    }
+    if (!found.avatar_url && input.avatarUrl) Object.assign(patch, await copyAvatar(input.avatarUrl));
+    if (Object.keys(patch).length) {
+      const { data } = await db().from("designers").update(patch).eq("id", found.id).select("*").single();
+      if (data) found = data as DesignerRow;
+    }
+    return found;
+  }
+
+  const row: Partial<DesignerRow> = {
+    slug: await uniqueSlug(slugify(profile?.handle ?? name)),
+    name: name || profile!.handle,
+    platform: input.platform,
+    profile_url: profile?.url ?? null,
+    handle: profile?.handle ?? null,
+    ...(input.avatarUrl ? await copyAvatar(input.avatarUrl) : {}),
+  };
+  const { data, error } = await db().from("designers").insert(row).select("*").single();
+  if (error) throw new Error(`Dizaynerni saqlab bo'lmadi: ${error.message}`);
+  return data as DesignerRow;
+}
+
+async function copyAvatar(url: string): Promise<{ avatar_url?: string; avatar_path?: string }> {
+  if (!/^https?:\/\//i.test(url)) return {};
+  try {
+    const img = await copyRemoteImage(url);
+    return { avatar_url: img.url, avatar_path: img.path };
+  } catch (err) {
+    console.error("[designers] avatarni ko'chirib bo'lmadi:", err);
+    return {};
+  }
+}
+
+export async function renameDesigner(id: string, name: string) {
+  const { data, error } = await db().from("designers").update({ name: cleanName(name) }).eq("id", id).select("*").single();
+  if (error) throw new Error(error.message);
+  return data as DesignerRow;
+}
+
+/** Id bo'yicha dizaynerlar (ishlar ro'yxatiga qo'shish uchun) */
+export async function designersByIds(ids: string[]): Promise<Map<string, DesignerRow>> {
+  const unique = [...new Set(ids.filter(isUuid))];
+  if (unique.length === 0) return new Map();
+  const { data, error } = await db().from("designers").select("*").in("id", unique);
+  if (error) {
+    console.error("[designers] ro'yxatni o'qib bo'lmadi:", error.message);
+    return new Map();
+  }
+  return new Map((data as DesignerRow[]).map((d) => [d.id, d]));
+}
+
+export type DesignerSummary = DesignerRow & { picks: number; previews: string[] };
+
+/** Dizaynerlar sahifasi: kamida bitta chop etilgan ishi bor dizaynerlar, eng faoli birinchi */
+export async function getDesignersWithStats(): Promise<DesignerSummary[]> {
+  try {
+    const { data, error } = await db()
+      .from("works")
+      .select("designer_id, image_url, published_at")
+      .eq("status", "published")
+      .not("designer_id", "is", null)
+      .order("published_at", { ascending: false })
+      .limit(5000);
+    if (error) throw new Error(error.message);
+    const stats = new Map<string, { picks: number; previews: string[]; last: string }>();
+    for (const w of data as { designer_id: string; image_url: string | null; published_at: string }[]) {
+      const s = stats.get(w.designer_id) ?? { picks: 0, previews: [], last: w.published_at };
+      s.picks++;
+      if (w.image_url && s.previews.length < 3) s.previews.push(w.image_url);
+      stats.set(w.designer_id, s);
+    }
+    const designers = await designersByIds([...stats.keys()]);
+    return [...stats.entries()]
+      .map(([id, s]) => {
+        const d = designers.get(id);
+        return d ? { ...d, picks: s.picks, previews: s.previews, _last: s.last } : null;
+      })
+      .filter((d): d is DesignerSummary & { _last: string } => Boolean(d))
+      .sort((a, b) => b.picks - a.picks || (a._last < b._last ? 1 : -1))
+      .map(({ _last, ...d }) => {
+        void _last;
+        return d;
+      });
+  } catch (err) {
+    console.error("[designers] statistikani o'qib bo'lmadi:", err);
+    return [];
+  }
+}

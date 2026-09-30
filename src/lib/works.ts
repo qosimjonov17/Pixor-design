@@ -14,6 +14,7 @@ export type WorkRow = {
   image_path: string | null;
   designer_name: string;
   designer_handle: string | null;
+  designer_id: string | null;
   status: "draft" | "published" | "rejected";
   created_by_tg: number | null;
   channel_message_id: number | null;
@@ -29,9 +30,11 @@ function bgFor(name: string) {
   return AVATAR_BGS[h % AVATAR_BGS.length];
 }
 
+type DesignerLite = { id: string; slug: string; name: string; handle: string | null; avatar_url: string | null };
+
 /** Bazadagi qatorni saytdagi Work ko'rinishiga o'tkazadi */
-export function toWork(row: WorkRow): Work {
-  const name = row.designer_name || "Noma'lum dizayner";
+export function toWork(row: WorkRow, designer?: DesignerLite): Work {
+  const name = designer?.name || row.designer_name || "Noma'lum dizayner";
   return {
     id: row.id,
     title: row.title || "Nomsiz ish",
@@ -41,20 +44,38 @@ export function toWork(row: WorkRow): Work {
     description: row.description ?? undefined,
     designer: {
       name,
-      handle: row.designer_handle ?? undefined,
+      handle: designer?.handle ?? row.designer_handle ?? undefined,
+      avatar: designer?.avatar_url ?? undefined,
+      slug: designer?.slug,
       avatarBg: bgFor(name),
     },
   };
 }
 
+/** Ishlarga dizayner ma'lumotini (avatar, profil manzili) qo'shadi */
+async function withDesigners(rows: WorkRow[]): Promise<Work[]> {
+  const ids = [...new Set(rows.map((r) => r.designer_id).filter((id): id is string => Boolean(id)))];
+  let map = new Map<string, DesignerLite>();
+  if (ids.length) {
+    const { data, error } = await db().from("designers").select("id, slug, name, handle, avatar_url").in("id", ids);
+    if (error) console.error("[works] dizaynerlarni o'qib bo'lmadi:", error.message);
+    else map = new Map((data as DesignerLite[]).map((d) => [d.id, d]));
+  }
+  return rows.map((r) => toWork(r, r.designer_id ? map.get(r.designer_id) : undefined));
+}
+
 /** Saytda ko'rinadigan (chop etilgan) ishlar, eng yangisi birinchi */
-export async function getPublishedWorks(platform?: Platform | null): Promise<Work[]> {
+export async function getPublishedWorks(
+  platform?: Platform | null,
+  designerId?: string,
+): Promise<Work[]> {
   try {
     let q = db().from("works").select("*").eq("status", "published").order("published_at", { ascending: false });
     if (platform) q = q.eq("platform", platform);
+    if (designerId) q = q.eq("designer_id", designerId);
     const { data, error } = await q.limit(500);
     if (error) throw new Error(error.message);
-    return (data as WorkRow[]).map(toWork);
+    return await withDesigners(data as WorkRow[]);
   } catch (err) {
     console.error("[works] ro'yxatni o'qib bo'lmadi:", err);
     return [];
@@ -67,7 +88,8 @@ export async function getPublishedWorksByIds(ids: string[]): Promise<Work[]> {
   try {
     const { data, error } = await db().from("works").select("*").eq("status", "published").in("id", valid);
     if (error) throw new Error(error.message);
-    const byId = new Map((data as WorkRow[]).map((r) => [r.id, toWork(r)]));
+    const works = await withDesigners(data as WorkRow[]);
+    const byId = new Map(works.map((w) => [w.id, w]));
     return valid.map((id) => byId.get(id)).filter((w): w is Work => Boolean(w));
   } catch (err) {
     console.error("[works] saqlanganlarni o'qib bo'lmadi:", err);

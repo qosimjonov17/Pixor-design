@@ -2,20 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { submitCapture } from "./actions";
-
-/** Brauzer tugmachasi kodi: sahifadan ma'lumot yig'ib, Pixora'ning shu sahifasini ochadi */
-function bookmarkletCode(site: string) {
-  // Behance/Dribbble loyihani profil ustida oynacha qilib ochadi — sahifadagi meta profilniki bo'lib qoladi.
-  // Shuning uchun loyiha manzilini brauzerning o'zida qayta yuklab (sayt bloklamaydi), o'sha HTML'ni o'qiymiz.
-  const js = `(()=>{const S=${JSON.stringify(site)};const w=window.open("about:blank","_blank");const go=d=>{const u=S+"/admin/add#"+encodeURIComponent(JSON.stringify(d));if(w)w.location.href=u;else location.href=u};const href=location.href.split("#")[0];const h=location.hostname;const pick=(doc,n)=>{const e=doc.querySelector('meta[property="'+n+'"],meta[name="'+n+'"]');return e&&e.content||""};const own=html=>{const r=html.match(/"owners"\\s*:\\s*\\[\\s*\\{[^\\]]*?"display_name"\\s*:\\s*"([^"]{1,80})"/);if(!r)return"";try{return JSON.parse('"'+r[1]+'"')}catch(e){return r[1]}};if(h==="x.com"||h.includes("twitter")){const q=s=>document.querySelector(s);const t=q('article [data-testid="tweetText"]'),u=q('article [data-testid="User-Name"] span'),i=q('article img[src*="pbs.twimg.com/media"]');go({url:href,title:t?t.textContent.trim().slice(0,200):pick(document,"og:title"),description:"",image:i?i.src.replace(/name=[a-z0-9]+/,"name=large"):pick(document,"og:image"),designer:u?u.textContent.trim():""});return}fetch(href,{credentials:"include"}).then(r=>r.text()).then(html=>{const doc=new DOMParser().parseFromString(html,"text/html");go({url:href,title:pick(doc,"og:title")||(doc.title||""),description:pick(doc,"og:description")||pick(doc,"description"),image:pick(doc,"og:image")||pick(doc,"twitter:image"),designer:own(html)||pick(doc,"author")})}).catch(()=>go({url:href,title:pick(document,"og:title")||document.title,description:pick(document,"og:description"),image:pick(document,"og:image"),designer:own(document.documentElement.innerHTML)}))})()`;
-  return `javascript:${encodeURIComponent(js)}`;
-}
+import { bookmarkletHref } from "./bookmarklet";
 
 export function BookmarkletLink({ site }: { site: string }) {
   const ref = useRef<HTMLAnchorElement>(null);
   useEffect(() => {
     // React javascript: havolalarni bloklaydi, shuning uchun manzilni to'g'ridan-to'g'ri qo'yamiz
-    ref.current?.setAttribute("href", bookmarkletCode(site));
+    ref.current?.setAttribute("href", bookmarkletHref(site));
   }, [site]);
   return (
     <a
