@@ -1,6 +1,6 @@
 import "server-only";
 import { revalidatePath } from "next/cache";
-import { getPlatform } from "@/data/platforms";
+import { getPlatform, type Platform } from "@/data/platforms";
 import { db } from "./db";
 import { env } from "./env";
 import { readLinkPreview } from "./mtproto";
@@ -253,12 +253,28 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
     }
   }
 
+  return saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes });
+}
+
+type DraftInput = {
+  chatId: number;
+  userId: number;
+  url: string;
+  platform: Platform;
+  existing: WorkRow | null;
+  data: { title: string; description: string | null; designerName: string | null; designerHandle: string | null };
+  image: { url: string; path: string } | null;
+  notes: string[];
+};
+
+/** Qoralamani saqlaydi va adminga preview (tugmalar bilan) yuboradi */
+async function saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes }: DraftInput) {
   const fields = {
     platform,
-    title: data?.title ?? "",
-    description: data?.description ?? null,
-    designer_name: data?.designerName ?? "",
-    designer_handle: data?.designerHandle ?? null,
+    title: data.title,
+    description: data.description,
+    designer_name: data.designerName ?? "",
+    designer_handle: data.designerHandle,
     image_url: image?.url ?? null,
     image_path: image?.path ?? null,
     created_by_tg: userId,
@@ -278,13 +294,65 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
   await sendPreview(chatId, row);
 
   const missing = [!row.image_url && "muqova", !row.title && "nom", !row.designer_name && "dizayner ismi"].filter(Boolean);
-  const why = missing.length ? `\n<i>(tekshiruv: ${escapeHtml(notes.join(" → "))})</i>` : "";
+  const why = missing.length && notes.length ? `\n<i>(tekshiruv: ${escapeHtml(notes.join(" → "))})</i>` : "";
   if (!row.image_url) {
     await setState(userId, row.id, "image");
     await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.${why}`);
   } else if (missing.length) {
     await send(chatId, `ℹ️ ${missing.join(", ")} topilmadi — tugmalar orqali qo'shing.${why}`);
   }
+  return row;
+}
+
+export type BrowserCapture = {
+  url: string;
+  title?: string;
+  description?: string;
+  image?: string;
+  designer?: string;
+};
+
+/**
+ * Brauzer tugmachasi (bookmarklet) orqali kelgan ma'lumot: sahifa admin brauzerida
+ * o'qilgan, shuning uchun Behance bloklay olmaydi. Natija adminga botda preview bo'lib boradi.
+ */
+export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
+  const platform = detectPlatform(input.url);
+  if (!platform) return { ok: false, message: "Bu sahifa Behance, Dribbble, Dprofile yoki X emas." };
+  const url = normalizeUrl(input.url);
+  const adminId = [...env.botAdminIds][0];
+  if (!adminId) return { ok: false, message: "TELEGRAM_ADMIN_IDS sozlanmagan." };
+  const chatId = Number(adminId);
+
+  const existing = await findWorkBySource(url);
+  if (existing?.status === "published") {
+    return { ok: false, message: "Bu ish allaqachon saytda bor." };
+  }
+
+  const clean = (v: string | undefined, n: number) => {
+    const t = (v ?? "").replace(/\s+/g, " ").trim();
+    return t ? t.slice(0, n) : null;
+  };
+  const split = input.title ? splitTitle(platform, input.title) : null;
+  const data = {
+    title: clean(split?.title, 200) ?? "",
+    description: clean(input.description, 1000),
+    designerName: clean(input.designer, 120) ?? split?.designer ?? null,
+    designerHandle: null,
+  };
+
+  let image: { url: string; path: string } | null = null;
+  if (input.image && /^https?:\/\//i.test(input.image)) {
+    try {
+      image = await copyRemoteImage(input.image);
+    } catch (err) {
+      console.error("[bot] brauzer rasmi to'g'ridan-to'g'ri olinmadi:", err);
+      image = await copyImageViaTelegram(chatId, input.image);
+    }
+  }
+
+  await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes: [] });
+  return { ok: true, message: "Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing." };
 }
 
 /**

@@ -43,7 +43,11 @@ Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
    - `TELEGRAM_ADMIN_IDS`: botga `/start` yozganda chiqadigan ID (bir nechta bo'lsa vergul bilan)
 4. Redeploy, keyin saytga kirgan holda `https://SAYT/api/telegram/setup` ni oching.
 
-**Behance kabi bloklovchi saytlar uchun (Telegram preview)**
+**Behance kabi bloklovchi saytlar uchun: brauzer tugmachasi**
+
+Behance serverlarni bloklaydi. Kompyuterda `https://SAYT/admin/add` sahifasini oching (admin sifatida kirgan holda), «Pixora'ga qo'shish» tugmasini xatcho'plar paneliga sudrang. Keyin istalgan ish sahifasida shu tugmani bosing — ish botga preview bo'lib keladi.
+
+**Telegram preview (qo'shimcha, ixtiyoriy)**
 
 Behance serverlarni bloklaydi, lekin Telegram'ga ochiq. Bot Telegram yasagan havola preview'ini o'qiydi:
 
