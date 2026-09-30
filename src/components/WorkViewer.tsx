@@ -61,7 +61,7 @@ export default function WorkViewer({
 
       <div className="pointer-events-none relative flex h-full flex-col overflow-y-auto lg:flex-row lg:items-center lg:overflow-hidden">
         {/* Rasm va strelkalar */}
-        <div className="flex min-w-0 flex-1 items-center gap-3 px-4 pt-20 pb-4 lg:gap-[30px] lg:px-[30px] lg:py-0">
+        <div className="flex min-w-0 flex-1 items-center justify-center gap-3 px-4 pt-20 pb-4 lg:gap-[30px] lg:px-[30px] lg:py-0">
           <button
             type="button"
             onClick={onPrev}
@@ -72,7 +72,11 @@ export default function WorkViewer({
             <Image src="/icons/arrow-left.svg" alt="" width={24} height={24} />
           </button>
 
-          <div className="pointer-events-auto relative aspect-[922/690] max-h-[calc(100dvh-160px)] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder lg:max-h-[690px]">
+          {/* Ramka doim 922×690 nisbatda: eni ekran balandligiga qarab cheklanadi, shunda keng ekranda cho'zilmaydi */}
+          <div
+            className="pointer-events-auto relative aspect-[922/690] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder"
+            style={{ maxWidth: "min(922px, calc((100dvh - 160px) * 922 / 690))" }}
+          >
             {work.image && (
               <Image
                 src={work.image}
