@@ -114,11 +114,12 @@ export function splitTitle(platform: Platform, raw: string): { title: string; de
       designer = m[2];
     }
   } else if (platform === "x") {
-    // "Jane Doe on X: \"text\" / X"
-    const m = title.match(/^(.+?)\s+on\s+(?:X|Twitter):\s*"?(.*?)"?\s*(?:\/\s*(?:X|Twitter))?$/i);
+    // "Jane Doe on X: \"text\" / X" yoki "Jane Doe (@jane) on X"
+    const withHandle = title.match(/^(.+?)\s*\(@[\w]+\)\s+on\s+(?:X|Twitter)\s*(?::\s*"?(.*?)"?)?\s*(?:\/\s*(?:X|Twitter))?$/i);
+    const m = withHandle ?? title.match(/^(.+?)\s+on\s+(?:X|Twitter):\s*"?(.*?)"?\s*(?:\/\s*(?:X|Twitter))?$/i);
     if (m) {
       designer = m[1];
-      title = m[2];
+      title = m[2] ?? "";
     }
   }
   return { title: title.trim(), designer: designer?.trim() || null };

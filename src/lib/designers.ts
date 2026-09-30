@@ -126,6 +126,10 @@ export async function resolveDesigner(input: DesignerInput): Promise<DesignerRow
       patch.handle = profile.handle;
       patch.platform = input.platform;
     }
+    // Oldin faqat nik bilan saqlangan bo'lsa, haqiqiy ismni qo'yamiz
+    if (name && found.handle && found.name.toLowerCase() === found.handle.toLowerCase() && name.toLowerCase() !== found.handle.toLowerCase()) {
+      patch.name = name;
+    }
     if (!found.avatar_url && input.avatarUrl) Object.assign(patch, await copyAvatar(input.avatarUrl));
     if (Object.keys(patch).length) {
       const { data } = await db().from("designers").update(patch).eq("id", found.id).select("*").single();

@@ -65,7 +65,9 @@ const GENERIC_NAMES = /^(behance|dribbble|dprofile|x|twitter)$/i;
 export function channelCaption(row: WorkRow, descLimit = 550) {
   const title = escapeHtml(clip(row.title || "Nomsiz ish", 200));
   const name = row.designer_name && !GENERIC_NAMES.test(row.designer_name.trim()) ? row.designer_name : "";
-  const lines = [`🆕 <b>Yangi ish qo'shildi!</b>`, "", `📝 <b>${title}</b>`];
+  // X postlarida nom bo'lmaydi — faqat muallif va post matni
+  const lines = [`🆕 <b>Yangi ish qo'shildi!</b>`, ""];
+  if (row.platform !== "x") lines.push(`📝 <b>${title}</b>`);
   if (name) lines.push(`👤 ${escapeHtml(clip(name, 120))}`);
   if (row.description) {
     lines.push("", `<blockquote expandable>${escapeHtml(clip(row.description.trim(), descLimit))}</blockquote>`);
@@ -321,7 +323,11 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
 
   await sendPreview(chatId, row);
 
-  const missing = [!row.image_url && "muqova", !row.title && "nom", !row.designer_name && "dizayner ismi"].filter(Boolean);
+  const missing = [
+    !row.image_url && "muqova",
+    !row.title && row.platform !== "x" && "nom",
+    !row.designer_name && "dizayner ismi",
+  ].filter(Boolean);
   const why = missing.length && notes.length ? `\n<i>(tekshiruv: ${escapeHtml(notes.join(" → "))})</i>` : "";
   if (!row.image_url) {
     await setState(userId, row.id, "image");
@@ -510,7 +516,10 @@ async function onCallback(cb: TgCallback) {
   if (action === "p") {
     if (row.status === "published") return answer("Allaqachon chop etilgan", true);
     if (!row.image_url) return answer("Avval muqova rasmini qo'shing (🖼 Rasm)", true);
-    if (!row.title) return answer("Avval nom qo'shing (✏️ Nom)", true);
+    if (!row.title && row.platform !== "x") return answer("Avval nom qo'shing (✏️ Nom)", true);
+    if (row.platform === "x" && !row.designer_name && !row.description) {
+      return answer("Avval dizayner yoki post matnini qo'shing (👤 / 📄)", true);
+    }
     await answer("Chop etilmoqda…");
 
     // Avval kanal: u muvaffaqiyatli bo'lsa, saytga ham chiqaramiz (ikkalasi bir xil bo'lsin)

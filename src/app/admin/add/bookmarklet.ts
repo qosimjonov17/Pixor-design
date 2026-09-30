@@ -43,7 +43,7 @@ if(h==="x.com"||h.indexOf("twitter")>=0){
   var q=function(s){return document.querySelector(s)};
   var t=q('article [data-testid="tweetText"]'),un=q('article [data-testid="User-Name"] span'),im=q('article img[src*="pbs.twimg.com/media"]'),av=q('article img[src*="profile_images"]');
   var hd=location.pathname.split("/")[1]||"";
-  go({url:href,title:t?t.textContent.trim().slice(0,200):meta(document,"og:title"),description:"",image:im?im.src.replace(/name=[a-z0-9]+/,"name=large"):meta(document,"og:image"),designer:un?un.textContent.trim():"",designerUrl:hd?"https://x.com/"+hd:"",designerAvatar:av?av.src.replace("_normal.","_400x400."):""});
+  go({url:href,title:"",description:t?t.textContent.trim().slice(0,1000):meta(document,"og:description"),image:im?im.src.replace(/name=[a-z0-9]+/,"name=large"):meta(document,"og:image"),designer:un?un.textContent.trim():"",designerUrl:hd?"https://x.com/"+hd:"",designerAvatar:av?av.src.replace("_normal.","_400x400."):""});
   return;
 }
 function owner(doc,html){

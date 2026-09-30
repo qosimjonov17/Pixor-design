@@ -37,7 +37,10 @@ export function toWork(row: WorkRow, designer?: DesignerLite): Work {
   const name = designer?.name || row.designer_name || "Noma'lum dizayner";
   return {
     id: row.id,
-    title: row.title || "Nomsiz ish",
+    // X postlarida nom yo'q — kartada post matnining boshi ko'rinadi
+    title:
+      (row.platform === "x" && row.description ? row.description.replace(/\s+/g, " ").slice(0, 90) : row.title) ||
+      "Nomsiz ish",
     platform: row.platform,
     url: row.source_url,
     image: row.image_url ?? undefined,
