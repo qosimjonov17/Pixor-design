@@ -454,16 +454,27 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   const existing = await findWorkBySource(url);
   if (existing?.status === "published") {
     // Tugmacha chiqqan ishda qayta bosildi: dizaynerning avatari/profilini to'ldiramiz, muqovani yangilaymiz
+    let designerError = "";
     const designer = await resolveDesigner({
       name: existing.designer_name || input.designer,
       platform,
       profileUrl: input.designerUrl,
       avatarUrl: input.designerAvatar,
-    }).catch(() => null);
+    }).catch((err) => {
+      designerError = err instanceof Error ? err.message : String(err);
+      console.error("[bot] dizaynerni yangilab bo'lmadi:", err);
+      return null;
+    });
     if (designer && existing.designer_id !== designer.id) {
-      await updateWork(existing.id, { designer_id: designer.id, designer_handle: designer.handle });
+      await updateWork(existing.id, {
+        designer_id: designer.id,
+        designer_name: designer.name,
+        designer_handle: designer.handle,
+      });
     }
-    return refreshPublishedCover(existing, input.image, chatId);
+    revalidatePath("/designers", "layout");
+    const cover = await refreshPublishedCover(existing, input.image, chatId);
+    return { ok: cover.ok, message: `${cover.message}\n${designerReport(designer, input, designerError)}` };
   }
 
   const clean = (v: string | undefined, n: number) => {
@@ -533,7 +544,19 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   }
 
   await saveDraftAndPreview({ chatId, userId: chatId, url, platform, existing, data, image, notes, designer, video });
-  return { ok: true, message: "Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing." };
+  return {
+    ok: true,
+    message: `Botga yuborildi — Telegram'da tekshirib, ✅ ni bosing.\n${designerReport(designer, input)}`,
+  };
+}
+
+/** Tugmacha oynasida ko'rinadigan qisqa hisobot: dizayner bo'yicha nima topildi va saqlandi */
+function designerReport(designer: DesignerRow | null, input: BrowserCapture, error = "") {
+  const found = `sahifadan: ${input.designer ? "ism ✓" : "ism ✗"}, ${input.designerUrl ? "profil ✓" : "profil ✗"}, ${input.designerAvatar ? "avatar ✓" : "avatar ✗"}`;
+  const saved = designer
+    ? `saqlandi: ${designer.name}${designer.handle ? ` (@${designer.handle})` : ""}, avatar ${designer.avatar_url ? "✓" : "✗"}`
+    : "dizayner saqlanmadi";
+  return `👤 ${saved} — ${found}${error ? ` — xato: ${error}` : ""}`;
 }
 
 /**

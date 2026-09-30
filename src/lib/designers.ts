@@ -142,8 +142,15 @@ export async function resolveDesigner(input: DesignerInput): Promise<DesignerRow
     }
     if (!found.avatar_url && input.avatarUrl) Object.assign(patch, await copyAvatar(input.avatarUrl));
     if (Object.keys(patch).length) {
-      const { data } = await db().from("designers").update(patch).eq("id", found.id).select("*").single();
+      const { data, error } = await db().from("designers").update(patch).eq("id", found.id).select("*").single();
       if (data) found = data as DesignerRow;
+      else if (error && profile && /duplicate|unique|23505/i.test(`${error.code} ${error.message}`)) {
+        // Bu profil boshqa yozuvda band — o'sha (profilli) dizaynerni ishlatamiz
+        const { data: owner } = await db().from("designers").select("*").eq("profile_url", profile.url).maybeSingle();
+        if (owner) return owner as DesignerRow;
+      } else if (error) {
+        throw new Error(`Dizaynerni yangilab bo'lmadi: ${error.message}`);
+      }
     }
     return found;
   }

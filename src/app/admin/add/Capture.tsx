@@ -56,7 +56,7 @@ export function CaptureReceiver() {
           ⏳ Yuborilmoqda: <span className="font-medium">{state.title}</span>
         </p>
       ) : (
-        <p className="text-[16px] leading-[1.4] text-ink">
+        <p className="text-[16px] leading-[1.4] whitespace-pre-line text-ink">
           {state.ok ? "✅ " : "⚠️ "}
           {state.message}
           {state.ok && <span className="block pt-2 text-[14px] text-subtle">Bu oynani yopishingiz mumkin.</span>}
