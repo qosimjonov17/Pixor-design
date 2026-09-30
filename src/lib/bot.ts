@@ -7,6 +7,7 @@ import { recentDesigners, resolveDesigner, getDesignerById, type DesignerRow } f
 import { readLinkPreview } from "./mtproto";
 import { fetchXPost, type XPost } from "./x";
 import { designerFromDescription, detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
+import { copyImageViaTelegram } from "./telegramMedia";
 import { downloadTelegramFile, escapeHtml, tg, tgUpload, type InlineKeyboard } from "./telegramBot";
 import {
   copyRemoteImage,
@@ -451,7 +452,19 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   const chatId = Number(adminId);
 
   const existing = await findWorkBySource(url);
-  if (existing?.status === "published") return refreshPublishedCover(existing, input.image, chatId);
+  if (existing?.status === "published") {
+    // Tugmacha chiqqan ishda qayta bosildi: dizaynerning avatari/profilini to'ldiramiz, muqovani yangilaymiz
+    const designer = await resolveDesigner({
+      name: existing.designer_name || input.designer,
+      platform,
+      profileUrl: input.designerUrl,
+      avatarUrl: input.designerAvatar,
+    }).catch(() => null);
+    if (designer && existing.designer_id !== designer.id) {
+      await updateWork(existing.id, { designer_id: designer.id, designer_handle: designer.handle });
+    }
+    return refreshPublishedCover(existing, input.image, chatId);
+  }
 
   const clean = (v: string | undefined, n: number) => {
     const t = (v ?? "").replace(/\s+/g, " ").trim();
@@ -469,7 +482,12 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   }
   const data = {
     title: clean(split?.title, 200) ?? "",
-    description: clean(input.description, 1000),
+    description: clean(
+      platform === "dribbble"
+        ? (input.description ?? "").replace(/\s*Connect with them on Dribbble.*$/i, "").replace(/^[^.]{0,200} designed by [^.]{1,120}\.?\s*$/i, "")
+        : input.description,
+      1000,
+    ),
     designerName: split?.designer ?? pageName ?? null,
     designerHandle: null,
   };
@@ -548,29 +566,7 @@ async function refreshPublishedCover(row: WorkRow, imageUrl: string | undefined,
       reply_markup: channelKeyboard(updated),
     }).catch((err) => console.error("[bot] kanal postini yangilab bo'lmadi:", err));
   }
-  return { ok: true as const, message: "Bu ish saytda bor edi — muqovasi yangilandi (sayt va kanalda)." };
-}
-
-/**
- * Zaxira: rasm sayti serverimizni bloklasa, rasmni Telegram o'zi yuklab oladi
- * (sendPhoto URL bilan), keyin biz uni Telegram'dan olib, Storage'ga saqlaymiz.
- */
-async function copyImageViaTelegram(chatId: number, imageUrl: string) {
-  try {
-    const sent = await tg<{ message_id: number; photo?: TgPhoto[] }>("sendPhoto", {
-      chat_id: chatId,
-      photo: imageUrl,
-      disable_notification: true,
-    });
-    const fileId = sent.photo?.at(-1)?.file_id;
-    await tg("deleteMessage", { chat_id: chatId, message_id: sent.message_id }).catch(() => {});
-    if (!fileId) return null;
-    const file = await downloadTelegramFile(fileId);
-    return await storeImage(file.bytes, file.type);
-  } catch (err) {
-    console.error("[bot] muqovani Telegram orqali ham olib bo'lmadi:", err);
-    return null;
-  }
+  return { ok: true as const, message: "Bu ish saytda bor edi — muqova va dizayner ma'lumoti yangilandi." };
 }
 
 async function onCallback(cb: TgCallback) {

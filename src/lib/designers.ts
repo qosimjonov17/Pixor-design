@@ -1,6 +1,8 @@
 import "server-only";
 import type { Platform } from "@/data/platforms";
 import { db } from "./db";
+import { env } from "./env";
+import { copyImageViaTelegram } from "./telegramMedia";
 import { copyRemoteImage, isUuid } from "./works";
 
 /** Bazadagi designers qatori */
@@ -165,9 +167,13 @@ async function copyAvatar(url: string): Promise<{ avatar_url?: string; avatar_pa
     const img = await copyRemoteImage(url);
     return { avatar_url: img.url, avatar_path: img.path };
   } catch (err) {
-    console.error("[designers] avatarni ko'chirib bo'lmadi:", err);
-    return {};
+    console.error("[designers] avatarni to'g'ridan-to'g'ri ko'chirib bo'lmadi:", err);
   }
+  // Zaxira: rasmni Telegram yuklab oladi (sayt serverimizni bloklasa)
+  const adminId = [...env.botAdminIds][0];
+  if (!adminId) return {};
+  const img = await copyImageViaTelegram(Number(adminId), url);
+  return img ? { avatar_url: img.url, avatar_path: img.path } : {};
 }
 
 export async function renameDesigner(id: string, name: string) {

@@ -15,10 +15,12 @@ function merge(a,b){var r={};for(var k in a)r[k]=a[k];for(var k2 in b)if(b[k2])r
 function behanceJson(html){
   var m=html.search(/\\?"owners\\?"|&quot;owners&quot;/);if(m<0)return{};
   var c=html.slice(m,m+8000).replace(/&quot;/g,'"').replace(/\\"/g,'"').replace(/\\\//g,"/");
-  var n=c.match(/"display_name"\s*:\s*"((?:[^"\\]|\\.){1,120})"/);
+  var n=c.match(/"(?:display_name|displayName)"\s*:\s*"((?:[^"\\]|\\.){1,120})"/);
   var u=c.match(/"url"\s*:\s*"(https:\/\/www\.behance\.net\/[A-Za-z0-9._-]+)"/);
-  var best="",size=0,re=/"(https:\/\/mir-s3-cdn-cf\.behance\.net\/user\/(\d+)\/[^"]+)"/g,x;
-  while((x=re.exec(c))){if(+x[2]>size){size=+x[2];best=x[1]}}
+  var best="",size=0,re=/"url"\s*:\s*"(https:\/\/[^"]+)"\s*,\s*"width"\s*:\s*(\d+)/g,x;
+  var imgs=c.indexOf('"images"');var ic=imgs>=0?c.slice(imgs,imgs+3000):"";
+  while((x=re.exec(ic))){if(+x[2]>size&&+x[2]<=400){size=+x[2];best=x[1]}}
+  if(!best){var re2=/"(https:\/\/mir-s3-cdn-cf\.behance\.net\/user\/(\d+)\/[^"]+)"/g;while((x=re2.exec(c))){if(+x[2]>size){size=+x[2];best=x[1]}}}
   var name="";if(n){try{name=JSON.parse('"'+n[1]+'"')}catch(e){name=n[1]}}
   return{designer:name,designerUrl:u?u[1]:"",designerAvatar:best};
 }
@@ -34,16 +36,18 @@ function behanceCover(html){
   return best;
 }
 function dribbbleOwner(doc){
-  var t=meta(doc,"og:title").match(/ by (.+?)(?: for .+?)? on Dribbble\s*$/i);var name=t?t[1].trim():"";
+  var t=(meta(doc,"og:title")+"\n"+(doc.title||"")).match(/ by (.+?)(?: for .+?)? on Dribbble\s*$/im);var name=t?t[1].trim():"";
   if(!name){var d=(meta(doc,"og:description")+" "+meta(doc,"description")+" "+meta(doc,"twitter:description")).match(/designed by (.+?)(?: for |\.|,|$)/i);name=d?d[1].trim():""}
   if(!name)return{};
   var links=doc.querySelectorAll("a[href]"),url="",avatar="";
-  for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;
+  for(var i=0;i<links.length;i++){var a=links[i];
     var img=a.querySelector("img"),txt=(a.textContent||"").trim(),alt=img?(img.getAttribute("alt")||"").trim():"";
     var path=(a.getAttribute("href")||"").replace(/^https?:\/\/dribbble\.com(:\d+)?/,"");
     if((txt===name||alt===name)&&/^\/[A-Za-z0-9_-]+\/?$/.test(path)){url=abs(path,href);break}}
   if(url){for(var j=0;j<links.length;j++){var b=links[j],im=b.querySelector("img");if(im&&abs(b.getAttribute("href"),href)===url){avatar=abs(im.getAttribute("src"),href);break}}}
-  return{designer:name,designerUrl:url,designerAvatar:avatar};
+  var ps=doc.querySelectorAll(".formatted-text p, .shot-description p"),desc=[];
+  for(var k=0;k<ps.length&&desc.join(" ").length<500;k++){var pt=(ps[k].textContent||"").replace(/\s+/g," ").trim();if(pt.length>20&&!/^(partner with|hire |contact |follow )/i.test(pt))desc.push(pt)}
+  return{designer:name,designerUrl:url,designerAvatar:avatar,description:desc.join(" ").slice(0,900)};
 }
 function dprofileOwner(doc){
   var imgs=doc.querySelectorAll('img[alt^="Аватар пользователя"]');
