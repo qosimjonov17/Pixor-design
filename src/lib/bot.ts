@@ -321,8 +321,8 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
   const designer = await resolveDesigner({
     name: data.designerName,
     platform,
-    profileUrl: data.designerHandle ? `/${data.designerHandle}` : null,
-    avatarUrl: x?.post?.avatar,
+    profileUrl: site?.designerUrl ?? (data.designerHandle ? `/${data.designerHandle}` : null),
+    avatarUrl: x?.post?.avatar ?? site?.designerAvatar,
   }).catch((err) => {
     console.error("[bot] dizaynerni aniqlab bo'lmadi:", err);
     return null;

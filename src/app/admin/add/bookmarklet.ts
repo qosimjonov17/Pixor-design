@@ -45,6 +45,13 @@ function dribbbleOwner(doc){
   if(url){for(var j=0;j<links.length;j++){var b=links[j],im=b.querySelector("img");if(im&&abs(b.getAttribute("href"),href)===url){avatar=abs(im.getAttribute("src"),href);break}}}
   return{designer:name,designerUrl:url,designerAvatar:avatar};
 }
+function dprofileOwner(doc){
+  var imgs=doc.querySelectorAll('img[alt^="Аватар пользователя"]');
+  for(var i=0;i<imgs.length;i++){var im=imgs[i];if(im.closest("header,nav"))continue;
+    var name=(im.getAttribute("alt")||"").replace(/^Аватар пользователя\s+/,"").trim();var a=im.closest("a[href]");
+    return{designer:name,designerUrl:a?abs(a.getAttribute("href"),href):"",designerAvatar:abs(im.getAttribute("src")||"",href)}}
+  return{};
+}
 function avatarLink(doc,base,re){
   var links=doc.querySelectorAll("a[href]");
   for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;var img=a.querySelector("img");
@@ -61,6 +68,7 @@ if(h==="x.com"||h.indexOf("twitter")>=0){
 function owner(doc,html){
   if(h.indexOf("behance")>=0)return merge(merge(avatarLink(doc,href,/behance\.net(:\d+)?\/user\//),behanceJson(html)),{image:behanceCover(html)});
   if(h.indexOf("dribbble")>=0)return dribbbleOwner(doc);
+  if(h.indexOf("dprofile")>=0)return dprofileOwner(doc);
   return{designer:meta(doc,"author")};
 }
 function vid(doc){

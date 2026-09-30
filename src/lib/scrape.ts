@@ -15,6 +15,9 @@ export type Scraped = {
   image: string | null;
   designerName: string | null;
   designerHandle: string | null;
+  /** Muallif profili va avatari (sahifadan topilsa) */
+  designerUrl?: string | null;
+  designerAvatar?: string | null;
 };
 
 export function detectPlatform(rawUrl: string): Platform | null {
@@ -117,12 +120,8 @@ export function splitTitle(platform: Platform, raw: string): { title: string; de
     // "Banking App :: Behance", "Banking App on Behance", "Banking App | Behance"
     title = title.replace(/\s*(::|\||—|-|on)\s*Behance\s*$/i, "");
   } else if (platform === "dprofile") {
+    // "Шрифт Vitrage — Dprofile". Muallif sarlavhada bo'lmaydi (u sahifadagi avatar yonida)
     title = title.replace(/\s*(\||—|-|::)\s*Dprofile\s*$/i, "");
-    const m = title.match(/^(.*?)\s+(?:—|-|от|by)\s+(.+)$/i);
-    if (m && m[2].split(" ").length <= 4) {
-      title = m[1];
-      designer = m[2];
-    }
   } else if (platform === "x") {
     // "Jane Doe on X: \"text\" / X" yoki "Jane Doe (@jane) on X"
     const withHandle = title.match(/^(.+?)\s*\(@[\w]+\)\s+on\s+(?:X|Twitter)\s*(?::\s*"?(.*?)"?)?\s*(?:\/\s*(?:X|Twitter))?$/i);
@@ -144,8 +143,50 @@ function handleFromUrl(platform: Platform, url: string): string | null {
   return null;
 }
 
+const DPROFILE_RESERVED = new Set(["case", "cases", "work", "works", "search", "login", "signup", "jobs", "vacancies", "about", "top", "feed", "profile", "settings"]);
+
+/**
+ * Dprofile muallifi: avatar rasmida alt="Аватар пользователя <Ism>", uning atrofidagi
+ * havola — https://dprofile.ru/<nik>. Birinchisi — asosiy muallif (studiya yoki dizayner).
+ */
+export function dprofileOwner(html: string, pageUrl: string) {
+  const body = html.replace(/<header[\s\S]*?<\/header>/gi, "").replace(/<nav[\s\S]*?<\/nav>/gi, "");
+  for (const tag of body.match(/<img\b[^>]*>/gi) ?? []) {
+    const alt = tag.match(/\balt\s*=\s*"([^"]*)"/i)?.[1];
+    const name = alt?.match(/^Аватар пользователя\s+(.+)$/i)?.[1];
+    if (!name) continue;
+    const src = tag.match(/\bsrc\s*=\s*"([^"]+)"/i)?.[1] ?? null;
+    const before = body.slice(Math.max(0, body.indexOf(tag) - 800), body.indexOf(tag));
+    const hrefs = [...before.matchAll(/href\s*=\s*"([^"]+)"/gi)].map((m) => m[1]);
+    let profile: string | null = null;
+    for (const h of hrefs.reverse()) {
+      try {
+        const u = new URL(decodeEntities(h), pageUrl);
+        const parts = u.pathname.split("/").filter(Boolean);
+        if (u.hostname.endsWith("dprofile.ru") && parts.length === 1 && !DPROFILE_RESERVED.has(parts[0].toLowerCase())) {
+          profile = `https://dprofile.ru/${parts[0]}`;
+          break;
+        }
+      } catch {}
+    }
+    let avatar: string | null = null;
+    try {
+      avatar = src ? new URL(decodeEntities(src), pageUrl).toString() : null;
+    } catch {}
+    return { name: decodeEntities(name).trim(), profile, avatar };
+  }
+  return null;
+}
+
 export function scrapeFromHtml(platform: Platform, url: string, html: string): Scraped {
   const meta = parseMeta(html);
+  if (platform === "dprofile") {
+    const owner = dprofileOwner(html, url);
+    if (owner) {
+      const d = scrapeFromMeta(platform, url, meta);
+      return { ...d, designerName: owner.name, designerUrl: owner.profile, designerAvatar: owner.avatar, designerHandle: owner.profile?.split("/").pop() ?? d.designerHandle };
+    }
+  }
   if (platform === "behance" && !meta.get("author")) {
     // Behance loyiha egasini sahifadagi JSON ichida saqlaydi
     const owner = html.match(/"owners"\s*:\s*\[\s*\{[^\]]*?"display_name"\s*:\s*"([^"]{1,80})"/)?.[1];
@@ -180,6 +221,8 @@ export function scrapeFromMeta(platform: Platform, url: string, meta: Map<string
     handleFromUrl(platform, url) ?? (creatorHandle?.startsWith("@") ? creatorHandle.slice(1) : null);
 
   let description = get("og:description", "twitter:description", "description");
+  // Dprofile tavsifni "Dprofile — …" deb boshlaydi
+  if (description && platform === "dprofile") description = description.replace(/^Dprofile\s*[—–-]\s*/i, "") || null;
   if (description && description.length > 600) description = `${description.slice(0, 597)}…`;
 
   return {
