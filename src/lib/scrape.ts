@@ -90,6 +90,16 @@ export function parseMeta(html: string): Map<string, string> {
   return meta;
 }
 
+/**
+ * Tavsifdan muallif: Dribbble "… designed by Ism for Studio. Connect with them on Dribbble…"
+ * deb yozadi (sarlavhada ism bo'lmaydi).
+ */
+export function designerFromDescription(text: string | null | undefined): string | null {
+  const m = text?.match(/designed by (.+?)(?:\s+for\s|\.|,|$)/i);
+  const name = m?.[1]?.trim();
+  return name && name.length <= 80 ? name : null;
+}
+
 /** Sarlavhadan platforma dumini va dizayner ismini ajratadi */
 export function splitTitle(platform: Platform, raw: string): { title: string; designer: string | null } {
   let title = raw.trim();
@@ -160,7 +170,10 @@ export function scrapeFromMeta(platform: Platform, url: string, meta: Map<string
   }
 
   const author = get("author", "article:author", "twitter:creator", "og:article:author");
-  const designerName = split.designer ?? (author && !/^https?:/i.test(author) ? author.replace(/^@/, "") : null);
+  const designerName =
+    split.designer ??
+    (platform === "dribbble" ? designerFromDescription(get("og:description", "description", "twitter:description")) : null) ??
+    (author && !/^https?:/i.test(author) ? author.replace(/^@/, "") : null);
 
   const creatorHandle = get("twitter:creator");
   const designerHandle =

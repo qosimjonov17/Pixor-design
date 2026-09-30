@@ -6,7 +6,7 @@ import { env } from "./env";
 import { recentDesigners, resolveDesigner, getDesignerById, type DesignerRow } from "./designers";
 import { readLinkPreview } from "./mtproto";
 import { fetchXPost, type XPost } from "./x";
-import { detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
+import { designerFromDescription, detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
 import { downloadTelegramFile, escapeHtml, tg, tgUpload, type InlineKeyboard } from "./telegramBot";
 import {
   copyRemoteImage,
@@ -461,6 +461,8 @@ export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true;
   // Sahifa sarlavhasidagi muallif ("… by Ism on Dribbble") eng ishonchli. Sahifadan topilgan
   // boshqa ismli profil (masalan, saytga kirgan adminning o'zi) bog'lanmaydi.
   const pageName = clean(input.designer, 120);
+  // Dribbble: ism sarlavhada bo'lmasa, tavsifdagi "designed by …" dan olinadi
+  if (split && !split.designer && platform === "dribbble") split.designer = designerFromDescription(input.description);
   if (split?.designer && pageName && pageName.toLowerCase() !== split.designer.toLowerCase()) {
     input.designerUrl = undefined;
     input.designerAvatar = undefined;

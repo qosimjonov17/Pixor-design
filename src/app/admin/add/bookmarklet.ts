@@ -35,7 +35,7 @@ function behanceCover(html){
 }
 function dribbbleOwner(doc){
   var t=meta(doc,"og:title").match(/ by (.+?)(?: for .+?)? on Dribbble\s*$/i);var name=t?t[1].trim():"";
-  if(!name){var d=meta(doc,"og:description").match(/designed by (.+?)(?: for |\.|$)/i);name=d?d[1].trim():""}
+  if(!name){var d=(meta(doc,"og:description")+" "+meta(doc,"description")+" "+meta(doc,"twitter:description")).match(/designed by (.+?)(?: for |\.|,|$)/i);name=d?d[1].trim():""}
   if(!name)return{};
   var links=doc.querySelectorAll("a[href]"),url="",avatar="";
   for(var i=0;i<links.length;i++){var a=links[i];if(a.closest("header,nav"))continue;
