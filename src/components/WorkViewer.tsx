@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ViewerVideo } from "@/components/AutoVideo";
 import SaveButton from "@/components/SaveButton";
 import { PersonRow, SoftLink } from "@/components/ui";
@@ -33,6 +33,13 @@ export default function WorkViewer({
 }) {
   const platform = getPlatform(work.platform);
   const closeRef = useRef<HTMLButtonElement>(null);
+
+  // Rasm — Figma'dagi 922×690 ramkada; video — o'zining nisbatida (qora chetlarsiz)
+  const [videoRatio, setVideoRatio] = useState<{ id: string; ratio: number } | null>(null);
+  const workId = work.id;
+  const onVideoRatio = useCallback((ratio: number) => setVideoRatio({ id: workId, ratio }), [workId]);
+  const frameRatio =
+    work.video && videoRatio?.id === work.id ? Math.min(3, Math.max(0.4, videoRatio.ratio)) : 922 / 690;
 
   // Klaviatura: Esc — yopish, ← → — oldingi/keyingi
   useEffect(() => {
@@ -74,13 +81,17 @@ export default function WorkViewer({
           </button>
 
           {/* Ramka doim 922×690 nisbatda; bo'sh joy va ekran balandligi ruxsat bergancha kattalashadi */}
-          <div className="pointer-events-auto relative aspect-[922/690] max-w-[calc((100dvh_-_160px)*922/690)] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder lg:max-w-[calc((100dvh_-_120px)*922/690)]">
+          <div
+            className="pointer-events-auto relative aspect-(--r) max-w-[calc((100dvh_-_160px)*var(--r))] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder lg:max-w-[calc((100dvh_-_120px)*var(--r))]"
+            style={{ "--r": frameRatio } as React.CSSProperties}
+          >
             {work.video ? (
               <ViewerVideo
                 key={work.id}
                 src={work.video.url}
                 poster={work.image}
                 withSound={work.video.kind === "video"}
+                onRatio={onVideoRatio}
               />
             ) : work.image && (
               <Image

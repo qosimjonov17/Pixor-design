@@ -54,13 +54,22 @@ export function ViewerVideo({
   src,
   poster,
   withSound,
+  onRatio,
 }: {
   src: string;
   poster?: string;
   withSound: boolean;
+  /** Video o'lchami ma'lum bo'lganda (eni / bo'yi) — ramka shunga moslanadi */
+  onRatio?: (ratio: number) => void;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(true);
+
+  // Video sahifa tayyor bo'lishidan oldin o'lchamini bilib olgan bo'lishi mumkin — shuni ham ushlaymiz
+  useEffect(() => {
+    const v = ref.current;
+    if (v && v.readyState >= 1 && v.videoWidth > 0 && v.videoHeight > 0) onRatio?.(v.videoWidth / v.videoHeight);
+  }, [onRatio]);
 
   return (
     <>
@@ -73,7 +82,11 @@ export function ViewerVideo({
         playsInline
         autoPlay
         preload="auto"
-        className="absolute inset-0 size-full bg-black object-contain"
+        onLoadedMetadata={(e) => {
+          const { videoWidth: w, videoHeight: h } = e.currentTarget;
+          if (w > 0 && h > 0) onRatio?.(w / h);
+        }}
+        className="absolute inset-0 size-full object-cover"
       />
       {withSound && (
         <button
