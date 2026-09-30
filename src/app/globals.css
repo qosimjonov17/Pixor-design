@@ -39,3 +39,15 @@ body {
   /* Figma'dagi "Google Sans Flex 120pt" optik o'lchami */
   font-variation-settings: "opsz" 120;
 }
+
+/*
+ * Rasm va videolar sichqonchani "ko'rmaydi": hover va bosish ularni o'rab turgan
+ * karta/tugmaga o'tadi. Shunda Yandex Brauzer (va boshqalar) rasm ustida o'z
+ * tugmalarini (Alisa, tarjima, qidiruv) chiqarmaydi, rasmni sudrab ham bo'lmaydi.
+ */
+img,
+video {
+  pointer-events: none;
+  -webkit-user-drag: none;
+  user-select: none;
+}
