@@ -135,6 +135,15 @@ function handleFromUrl(platform: Platform, url: string): string | null {
 
 export function scrapeFromHtml(platform: Platform, url: string, html: string): Scraped {
   const meta = parseMeta(html);
+  if (platform === "behance" && !meta.get("author")) {
+    // Behance loyiha egasini sahifadagi JSON ichida saqlaydi
+    const owner = html.match(/"owners"\s*:\s*\[\s*\{[^\]]*?"display_name"\s*:\s*"([^"]{1,80})"/)?.[1];
+    if (owner) meta.set("author", decodeEntities(owner.replace(/\\u([0-9a-f]{4})/gi, (_, h) => String.fromCharCode(parseInt(h, 16)))));
+  }
+  return scrapeFromMeta(platform, url, meta);
+}
+
+export function scrapeFromMeta(platform: Platform, url: string, meta: Map<string, string>): Scraped {
   const get = (...keys: string[]) => keys.map((k) => meta.get(k)).find((v) => v && v.length > 0) ?? null;
 
   const rawTitle = get("og:title", "twitter:title", "html:title") ?? "";
@@ -170,37 +179,101 @@ export function scrapeFromHtml(platform: Platform, url: string, html: string): S
   };
 }
 
-const BROWSER_UA =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36";
-const PREVIEW_UA = "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)";
+const BROWSER_HEADERS: Record<string, string> = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9",
+  "Sec-Fetch-Dest": "document",
+  "Sec-Fetch-Mode": "navigate",
+  "Sec-Fetch-Site": "none",
+  "Sec-Fetch-User": "?1",
+  "Upgrade-Insecure-Requests": "1",
+};
+// Havola preview qiluvchi botlar — ko'p saytlar ularga ochiq
+const BOT_UAS = [
+  "TelegramBot (like TwitterBot)",
+  "facebookexternalhit/1.1 (+http://www.facebook.com/externalhit_uatext.php)",
+  "Twitterbot/1.0",
+];
 
-async function fetchHtml(url: string, ua: string): Promise<string | null> {
+async function fetchHtml(url: string, headers: Record<string, string>): Promise<{ html: string | null; note: string }> {
   try {
-    const res = await fetch(url, {
-      headers: { "User-Agent": ua, Accept: "text/html,application/xhtml+xml", "Accept-Language": "en" },
-      redirect: "follow",
-      signal: AbortSignal.timeout(12_000),
-      cache: "no-store",
-    });
-    if (!res.ok) return null;
-    return await res.text();
-  } catch {
-    return null;
+    const res = await fetch(url, { headers, redirect: "follow", signal: AbortSignal.timeout(10_000), cache: "no-store" });
+    if (!res.ok) return { html: null, note: String(res.status) };
+    return { html: await res.text(), note: "ok" };
+  } catch (err) {
+    return { html: null, note: err instanceof Error && err.name === "TimeoutError" ? "timeout" : "tarmoq" };
   }
 }
 
-/** Havolani ochib ma'lumot oladi. Bir necha "brauzer" bilan urinadi. */
-export async function scrapeUrl(url: string): Promise<Scraped | null> {
+type Microlink = {
+  status?: string;
+  data?: { title?: string | null; description?: string | null; author?: string | null; image?: { url?: string } | null };
+};
+
+/** Zaxira: Microlink xizmati sahifani haqiqiy brauzerda ochib, ma'lumotini beradi */
+async function viaMicrolink(platform: Platform, url: string): Promise<{ data: Scraped | null; note: string }> {
+  const key = process.env.MICROLINK_API_KEY;
+  const endpoint = `${key ? "https://pro.microlink.io" : "https://api.microlink.io"}/?url=${encodeURIComponent(url)}`;
+  try {
+    const res = await fetch(endpoint, {
+      headers: key ? { "x-api-key": key } : {},
+      signal: AbortSignal.timeout(25_000),
+      cache: "no-store",
+    });
+    const json = (await res.json().catch(() => ({}))) as Microlink;
+    if (!res.ok || json.status !== "success" || !json.data) return { data: null, note: `microlink ${res.status}` };
+    const meta = new Map<string, string>();
+    const d = json.data;
+    if (d.title) meta.set("og:title", d.title);
+    if (d.description) meta.set("og:description", d.description);
+    if (d.image?.url) meta.set("og:image", d.image.url);
+    if (d.author) meta.set("author", d.author);
+    return { data: scrapeFromMeta(platform, url, meta), note: "microlink ok" };
+  } catch {
+    return { data: null, note: "microlink tarmoq" };
+  }
+}
+
+const score = (d: Scraped | null) => (d ? (d.title ? 2 : 0) + (d.image ? 2 : 0) + (d.designerName ? 1 : 0) + (d.description ? 1 : 0) : -1);
+
+/**
+ * Havolani ochib ma'lumot oladi: avval to'g'ridan-to'g'ri (brauzer va preview-bot sifatida),
+ * sayt bloklasa — Microlink orqali. `notes` — nima bo'lganini adminga ko'rsatish uchun.
+ */
+export async function scrapeUrl(url: string): Promise<{ data: Scraped; notes: string[] } | null> {
   const platform = detectPlatform(url);
   if (!platform) return null;
-
+  const notes: string[] = [];
   let best: Scraped | null = null;
-  for (const ua of [BROWSER_UA, PREVIEW_UA]) {
-    const html = await fetchHtml(url, ua);
-    if (!html) continue;
-    const data = scrapeFromHtml(platform, url, html);
-    if (!best || (data.image && !best.image) || (data.title && !best.title)) best = data;
-    if (best.image && best.title) break;
+  const consider = (d: Scraped | null) => {
+    if (score(d) > score(best)) best = d;
+  };
+
+  for (const headers of [BROWSER_HEADERS, ...BOT_UAS.map((ua) => ({ "User-Agent": ua, Accept: "text/html" }))]) {
+    const { html, note } = await fetchHtml(url, headers);
+    notes.push(note);
+    if (html) consider(scrapeFromHtml(platform, url, html));
+    if (score(best) >= 5) break;
   }
-  return best ?? { platform, url, title: "", description: null, image: null, designerName: null, designerHandle: null };
+  if (score(best) < 5) {
+    const m = await viaMicrolink(platform, url);
+    notes.push(m.note);
+    if (best && m.data) {
+      // Ikkala manbani birlashtiramiz
+      const b: Scraped = best;
+      consider({
+        ...b,
+        title: b.title || m.data.title,
+        description: b.description ?? m.data.description,
+        image: b.image ?? m.data.image,
+        designerName: b.designerName ?? m.data.designerName,
+      });
+    } else consider(m.data);
+  }
+  return {
+    data: best ?? { platform, url, title: "", description: null, image: null, designerName: null, designerHandle: null },
+    notes,
+  };
 }

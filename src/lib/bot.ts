@@ -221,14 +221,16 @@ async function onLink(chatId: number, userId: number, rawUrl: string) {
   }
 
   await send(chatId, "⏳ Ma'lumot olinmoqda…");
-  const data = await scrapeUrl(url);
+  const scraped = await scrapeUrl(url);
+  const data = scraped?.data;
 
   let image: { url: string; path: string } | null = null;
   if (data?.image) {
     try {
       image = await copyRemoteImage(data.image);
     } catch (err) {
-      console.error("[bot] muqovani ko'chirib bo'lmadi:", err);
+      console.error("[bot] muqovani to'g'ridan-to'g'ri ko'chirib bo'lmadi:", err);
+      image = await copyImageViaTelegram(chatId, data.image);
     }
   }
 
@@ -256,11 +258,34 @@ async function onLink(chatId: number, userId: number, rawUrl: string) {
   await sendPreview(chatId, row);
 
   const missing = [!row.image_url && "muqova", !row.title && "nom", !row.designer_name && "dizayner ismi"].filter(Boolean);
+  const why = missing.length && scraped ? `\n<i>(tekshiruv: ${escapeHtml(scraped.notes.join(" → "))})</i>` : "";
   if (!row.image_url) {
     await setState(userId, row.id, "image");
-    await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.`);
+    await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.${why}`);
   } else if (missing.length) {
-    await send(chatId, `ℹ️ ${missing.join(", ")} topilmadi — tugmalar orqali qo'shing.`);
+    await send(chatId, `ℹ️ ${missing.join(", ")} topilmadi — tugmalar orqali qo'shing.${why}`);
+  }
+}
+
+/**
+ * Zaxira: rasm sayti serverimizni bloklasa, rasmni Telegram o'zi yuklab oladi
+ * (sendPhoto URL bilan), keyin biz uni Telegram'dan olib, Storage'ga saqlaymiz.
+ */
+async function copyImageViaTelegram(chatId: number, imageUrl: string) {
+  try {
+    const sent = await tg<{ message_id: number; photo?: TgPhoto[] }>("sendPhoto", {
+      chat_id: chatId,
+      photo: imageUrl,
+      disable_notification: true,
+    });
+    const fileId = sent.photo?.at(-1)?.file_id;
+    await tg("deleteMessage", { chat_id: chatId, message_id: sent.message_id }).catch(() => {});
+    if (!fileId) return null;
+    const file = await downloadTelegramFile(fileId);
+    return await storeImage(file.bytes, file.type);
+  } catch (err) {
+    console.error("[bot] muqovani Telegram orqali ham olib bo'lmadi:", err);
+    return null;
   }
 }
 
