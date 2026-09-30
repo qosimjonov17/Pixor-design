@@ -157,8 +157,38 @@ const EXT: Record<string, string> = {
   "video/mp4": "mp4",
 };
 
+const MAX_IMAGE_SIDE = 2000;
+
+/**
+ * Katta rasmni kichraytiradi (eng uzun tomoni 2000px, JPEG/WebP sifatli).
+ * Behance "original" muqovalari 4000px+ va bir necha MB bo'ladi — Telegram havola orqali
+ * 5 MB dan kattasini olmaydi, sayt uchun ham 2000px yetarli.
+ */
+async function shrinkImage(bytes: ArrayBuffer | Uint8Array, type: string) {
+  if (!type.startsWith("image/") || type === "image/gif") return { bytes, type };
+  try {
+    const { default: sharp } = await import("sharp");
+    const input = Buffer.from(bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes));
+    const img = sharp(input, { failOn: "none" });
+    const meta = await img.metadata();
+    const big = Math.max(meta.width ?? 0, meta.height ?? 0) > MAX_IMAGE_SIDE;
+    if (!big && input.byteLength <= 1.5 * 1024 * 1024) return { bytes, type };
+    const resized = img.rotate().resize({ width: MAX_IMAGE_SIDE, height: MAX_IMAGE_SIDE, fit: "inside", withoutEnlargement: true });
+    const out = meta.hasAlpha && type === "image/png"
+      ? await resized.png({ compressionLevel: 9, palette: true }).toBuffer()
+      : await resized.jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+    return { bytes: new Uint8Array(out), type: meta.hasAlpha && type === "image/png" ? "image/png" : "image/jpeg" };
+  } catch (err) {
+    console.error("[works] rasmni kichraytirib bo'lmadi:", err);
+    return { bytes, type };
+  }
+}
+
 /** Faylni (rasm yoki MP4) saqlash joyiga yuklaydi */
-export async function storeImage(bytes: ArrayBuffer | Uint8Array, contentType: string) {
+export async function storeImage(rawBytes: ArrayBuffer | Uint8Array, contentType: string) {
+  const shrunk = await shrinkImage(rawBytes, contentType);
+  const bytes = shrunk.bytes;
+  contentType = shrunk.type;
   const type = EXT[contentType] ? contentType : "image/jpeg";
   const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${EXT[type]}`;
   const storage = db().storage.from(BUCKET);
@@ -182,7 +212,7 @@ export async function copyRemoteImage(url: string) {
   const type = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0].trim();
   if (!type.startsWith("image/")) throw new Error(`Rasm emas: ${type}`);
   const bytes = await res.arrayBuffer();
-  if (bytes.byteLength > 10 * 1024 * 1024) throw new Error("Rasm juda katta (10 MB dan ortiq)");
+  if (bytes.byteLength > 30 * 1024 * 1024) throw new Error("Rasm juda katta (30 MB dan ortiq)");
   return storeImage(bytes, type);
 }
 

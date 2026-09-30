@@ -153,7 +153,22 @@ async function sendWorkMedia(chatId: number | string, row: WorkRow, caption: str
     }
   }
   if (!row.image_url) throw new Error("Muqova ham, video ham yo'q");
-  return tg<{ message_id: number }>("sendPhoto", { ...base, photo: row.image_url });
+  try {
+    return await tg<{ message_id: number }>("sendPhoto", { ...base, photo: row.image_url });
+  } catch (err) {
+    // Havola orqali o'tmadi (masalan, rasm katta) — fayl sifatida yuklaymiz (10 MB gacha)
+    console.error("[bot] rasmni havola bilan yuborib bo'lmadi:", err);
+    const res = await fetch(row.image_url, { signal: AbortSignal.timeout(30_000) });
+    if (!res.ok) throw err;
+    const bytes = new Uint8Array(await res.arrayBuffer());
+    const type = (res.headers.get("content-type") ?? "image/jpeg").split(";")[0];
+    return tgUpload<{ message_id: number }>("sendPhoto", base, {
+      field: "photo",
+      bytes,
+      name: type === "image/png" ? "pixora.png" : "pixora.jpg",
+      type,
+    });
+  }
 }
 
 async function sendPreview(chatId: number, row: WorkRow) {
