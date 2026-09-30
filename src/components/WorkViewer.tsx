@@ -72,17 +72,14 @@ export default function WorkViewer({
             <Image src="/icons/arrow-left.svg" alt="" width={24} height={24} />
           </button>
 
-          {/* Ramka doim 922×690 nisbatda: eni ekran balandligiga qarab cheklanadi, shunda keng ekranda cho'zilmaydi */}
-          <div
-            className="pointer-events-auto relative aspect-[922/690] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder"
-            style={{ maxWidth: "min(922px, calc((100dvh - 160px) * 922 / 690))" }}
-          >
+          {/* Ramka doim 922×690 nisbatda; bo'sh joy va ekran balandligi ruxsat bergancha kattalashadi */}
+          <div className="pointer-events-auto relative aspect-[922/690] max-w-[calc((100dvh_-_160px)*922/690)] min-w-0 flex-1 overflow-hidden rounded-[32px] bg-placeholder lg:max-w-[calc((100dvh_-_120px)*922/690)]">
             {work.image && (
               <Image
                 src={work.image}
                 alt={work.title}
                 fill
-                sizes="(min-width: 1024px) 922px, 100vw"
+                sizes="(min-width: 1024px) 75vw, 100vw"
                 className="object-cover"
                 priority
               />
