@@ -46,7 +46,7 @@ export default function WorkGallery({
     <>
       <div className="grid grid-cols-1 gap-x-3 gap-y-5 sm:grid-cols-2 lg:grid-cols-3">
         {works.map((work, i) => (
-          <WorkCard key={work.id} work={work} onOpen={() => setOpenIndex(i)} />
+          <WorkCard key={work.id} work={work} onOpen={() => setOpenIndex(i)} playVideo={openIndex === null} />
         ))}
       </div>
 

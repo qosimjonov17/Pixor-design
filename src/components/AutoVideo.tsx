@@ -3,36 +3,50 @@
 import { useEffect, useRef, useState } from "react";
 
 /**
- * GIF kabi video: ovozsiz, takrorlanadi, faqat ekranda ko'ringanda o'ynaydi
- * (ko'p video bir vaqtda yuklanib, sahifani og'irlashtirmasin).
+ * GIF kabi video: ovozsiz, takrorlanadi, faqat ekranda ko'ringanda o'ynaydi.
+ * `active={false}` bo'lsa (masalan, ko'rish oynasi ochiq) — to'xtab turadi,
+ * shunda orqa fonda videolar kompyuterni band qilmaydi.
  */
 export default function AutoVideo({
   src,
   poster,
   className = "",
-  eager = false,
+  active = true,
 }: {
   src: string;
   poster?: string;
   className?: string;
-  /** true — darhol o'ynaydi (ko'rish oynasi uchun) */
-  eager?: boolean;
+  active?: boolean;
 }) {
   const ref = useRef<HTMLVideoElement>(null);
+  const visible = useRef(false);
+  const activeRef = useRef(active);
+
+  const sync = () => {
+    const video = ref.current;
+    if (!video) return;
+    if (visible.current && activeRef.current) video.play().catch(() => {});
+    else if (!video.paused) video.pause();
+  };
 
   useEffect(() => {
     const video = ref.current;
-    if (!video || eager) return;
+    if (!video) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) video.play().catch(() => {});
-        else video.pause();
+        visible.current = entry.isIntersecting;
+        sync();
       },
       { threshold: 0.25 },
     );
     observer.observe(video);
     return () => observer.disconnect();
-  }, [eager]);
+  }, []);
+
+  useEffect(() => {
+    activeRef.current = active;
+    sync();
+  }, [active]);
 
   return (
     <video
@@ -42,8 +56,8 @@ export default function AutoVideo({
       muted
       loop
       playsInline
-      autoPlay={eager}
-      preload={eager ? "auto" : "metadata"}
+      // Ekranga kelmaguncha yuklanmaydi — poster (muqova) ko'rinib turadi
+      preload="none"
       className={className}
     />
   );

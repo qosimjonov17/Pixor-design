@@ -18,7 +18,16 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-export default function WorkCard({ work, onOpen }: { work: Work; onOpen: () => void }) {
+export default function WorkCard({
+  work,
+  onOpen,
+  playVideo = true,
+}: {
+  work: Work;
+  onOpen: () => void;
+  /** false — video to'xtab turadi (ko'rish oynasi ochiq bo'lganda) */
+  playVideo?: boolean;
+}) {
   const platform = getPlatform(work.platform);
   const { designer } = work;
 
@@ -31,7 +40,12 @@ export default function WorkCard({ work, onOpen }: { work: Work; onOpen: () => v
     >
       <div className="relative h-[270px] w-full overflow-hidden rounded-[32px] bg-placeholder group-focus-visible:ring-2 group-focus-visible:ring-brand">
         {work.video ? (
-          <AutoVideo src={work.video.url} poster={work.image} className="absolute inset-0 size-full object-cover" />
+          <AutoVideo
+            src={work.video.url}
+            poster={work.image}
+            active={playVideo}
+            className="absolute inset-0 size-full object-cover"
+          />
         ) : (
           work.image && (
             <Image
