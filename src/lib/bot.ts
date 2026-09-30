@@ -223,7 +223,7 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
 
   await send(chatId, "⏳ Ma'lumot olinmoqda…");
   // Ikki manba parallel: Telegram yasagan preview (bloklanmaydi) va saytning o'zi
-  const [tgp, scraped] = await Promise.all([readLinkPreview(messageId), scrapeUrl(url)]);
+  const [tgp, scraped] = await Promise.all([readLinkPreview(chatId, messageId, url), scrapeUrl(url)]);
   const site = scraped?.data;
   const notes = [tgp.note, ...(scraped?.notes ?? [])];
   const p = tgp.preview;
