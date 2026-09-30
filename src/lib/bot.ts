@@ -215,7 +215,7 @@ async function onLink(chatId: number, userId: number, rawUrl: string) {
   if (existing?.status === "published") {
     return send(chatId, `✅ Bu ish allaqachon saytda bor:\n${siteWorkUrl(existing.id)}`);
   }
-  if (existing?.status === "draft") {
+  if (existing?.status === "draft" && existing.image_url && existing.title) {
     await send(chatId, "Bu havola qoralamada turibdi, mana u:");
     return sendPreview(chatId, existing);
   }
@@ -248,7 +248,8 @@ async function onLink(chatId: number, userId: number, rawUrl: string) {
 
   let row: WorkRow;
   if (existing) {
-    // Oldin bekor qilingan havola qayta yuborildi
+    // Oldin bekor qilingan yoki chala qolgan havola qayta yuborildi
+    await clearState(userId);
     await deleteImage(existing.image_path);
     row = await updateWork(existing.id, fields);
   } else {
