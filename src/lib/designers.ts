@@ -91,9 +91,46 @@ export async function getDesignerBySlug(slug: string): Promise<DesignerRow | nul
   return (data as DesignerRow) ?? null;
 }
 
+/** Ism kaliti: belgilar, emoji va katta-kichik harf hisobga olinmaydi ("Rondesignlab ⭐️" = "rondesignlab") */
+export function nameKey(name: string) {
+  return name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/** Shu ismli barcha dizaynerlar (kalit bo'yicha), profillisi birinchi */
+async function findAllByName(name: string): Promise<DesignerRow[]> {
+  const key = nameKey(name);
+  if (!key) return [];
+  // Bazadan taxminiy qidiruv (harflar orasida istalgan belgi), keyin aniq kalit bilan saralaymiz
+  const pattern = `%${[...key.slice(0, 16)].map((ch) => ch.replace(/[%_\\]/g, "\\$&")).join("%")}%`;
+  const { data } = await db().from("designers").select("*").ilike("name", pattern).limit(50);
+  return ((data as DesignerRow[] | null) ?? [])
+    .filter((d) => nameKey(d.name) === key)
+    .sort((a, b) => Number(Boolean(b.profile_url)) - Number(Boolean(a.profile_url)));
+}
+
 async function findByName(name: string): Promise<DesignerRow | null> {
-  const { data } = await db().from("designers").select("*").ilike("name", name.replace(/[%_]/g, "\\$&")).limit(1);
-  return ((data as DesignerRow[] | null) ?? [])[0] ?? null;
+  return (await findAllByName(name))[0] ?? null;
+}
+
+/**
+ * Profilli dizaynerga uning profilsiz "egizaklari"ni qo'shadi: avval ism bilan qo'lda
+ * qo'shilgan yozuvlar. Ularning ishlari shu dizaynerga o'tadi, keraksiz yozuv o'chiriladi.
+ */
+async function mergeTwins(target: DesignerRow) {
+  if (!target.profile_url) return;
+  const twins = (await findAllByName(target.name)).filter((d) => d.id !== target.id && !d.profile_url);
+  for (const twin of twins) {
+    const { error } = await db()
+      .from("works")
+      .update({ designer_id: target.id, designer_name: target.name, designer_handle: target.handle })
+      .eq("designer_id", twin.id);
+    if (error) {
+      console.error("[designers] ishlarni ko'chirib bo'lmadi:", error.message);
+      continue;
+    }
+    await db().from("designers").delete().eq("id", twin.id);
+    if (twin.avatar_path) await db().storage.from("works").remove([twin.avatar_path]);
+  }
 }
 
 /** Bot tugmalari uchun: oxirgi qo'shilgan dizaynerlar */
@@ -114,6 +151,14 @@ export type DesignerInput = {
  * Avval profil havolasi bo'yicha (eng ishonchli), keyin ism bo'yicha qidiradi.
  */
 export async function resolveDesigner(input: DesignerInput): Promise<DesignerRow | null> {
+  const designer = await resolveDesignerInner(input);
+  if (designer?.profile_url) {
+    await mergeTwins(designer).catch((err) => console.error("[designers] birlashtirib bo'lmadi:", err));
+  }
+  return designer;
+}
+
+async function resolveDesignerInner(input: DesignerInput): Promise<DesignerRow | null> {
   const profile = normalizeProfileUrl(input.platform, input.profileUrl);
   const name = input.name ? cleanName(input.name) : "";
   if (!profile && !name) return null;
