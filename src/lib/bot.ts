@@ -58,24 +58,31 @@ function clip(s: string, n: number) {
   return s.length > n ? `${s.slice(0, n - 1)}…` : s;
 }
 
-/** Kanal posti matni (namunadagi uslub, havolasiz — havola tugmada) */
-export function channelCaption(row: WorkRow) {
-  const title = escapeHtml(clip(row.title || "Nomsiz ish", 300));
-  const designer = escapeHtml(clip(row.designer_name || "Noma'lum dizayner", 120));
-  return `🆕 <b>Yangi ish qo'shildi!</b>\n\n📝 ${title}\n👤 ${designer}`;
+const GENERIC_NAMES = /^(behance|dribbble|dprofile|x|twitter)$/i;
+
+/** Kanal posti matni: nom, dizayner, tavsif (iqtibos ko'rinishida). Havola — pastdagi tugmada. */
+export function channelCaption(row: WorkRow, descLimit = 550) {
+  const title = escapeHtml(clip(row.title || "Nomsiz ish", 200));
+  const name = row.designer_name && !GENERIC_NAMES.test(row.designer_name.trim()) ? row.designer_name : "";
+  const lines = [`🆕 <b>Yangi ish qo'shildi!</b>`, "", `📝 <b>${title}</b>`];
+  if (name) lines.push(`👤 ${escapeHtml(clip(name, 120))}`);
+  if (row.description) {
+    lines.push("", `<blockquote expandable>${escapeHtml(clip(row.description.trim(), descLimit))}</blockquote>`);
+  }
+  return lines.join("\n");
 }
 
 export function channelKeyboard(row: WorkRow): InlineKeyboard {
   return { inline_keyboard: [[{ text: "Pixora'da ko'rish", url: siteWorkUrl(row.id) }]] };
 }
 
+/** Preview = kanal posti bilan bir xil matn; pastda faqat adminga eslatmalar */
 function previewCaption(row: WorkRow) {
-  const parts = [channelCaption(row), "", "— — —"];
-  parts.push(`📄 ${row.description ? escapeHtml(clip(row.description, 350)) : "<i>tavsif yo'q</i>"}`);
-  parts.push(`🔗 ${escapeHtml(getPlatform(row.platform).label)}: ${escapeHtml(clip(row.source_url, 120))}`);
-  if (!row.image_url) parts.push("\n⚠️ Muqova yo'q — 🖼 Rasm tugmasini bosib, rasm yuboring.");
-  parts.push("\nSayt va kanalga chiqarish uchun ✅ ni bosing.");
-  return clip(parts.join("\n"), 1000);
+  const notes: string[] = [];
+  if (!row.image_url) notes.push("⚠️ Muqova yo'q — 🖼 Rasm tugmasini bosib, rasm yuboring.");
+  if (!row.designer_name || GENERIC_NAMES.test(row.designer_name.trim())) notes.push("⚠️ Dizayner ismi yo'q — 👤 Dizayner tugmasi.");
+  notes.push("Kanalda pastda «Pixora'da ko'rish» tugmasi bo'ladi. Chiqarish uchun ✅ ni bosing.");
+  return `${channelCaption(row, 330)}\n\n— — —\n<i>${notes.join("\n")}</i>`;
 }
 
 function previewKeyboard(row: WorkRow): InlineKeyboard {
@@ -90,7 +97,10 @@ function previewKeyboard(row: WorkRow): InlineKeyboard {
         { text: "📄 Tavsif", callback_data: `e:description:${row.id}` },
         { text: "🖼 Rasm", callback_data: `e:image:${row.id}` },
       ],
-      [{ text: "❌ Bekor qilish", callback_data: `x:${row.id}` }],
+      [
+        { text: `🔗 ${getPlatform(row.platform).label}'da ochish`, url: row.source_url },
+        { text: "❌ Bekor qilish", callback_data: `x:${row.id}` },
+      ],
     ],
   };
 }
