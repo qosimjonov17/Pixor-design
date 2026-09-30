@@ -43,6 +43,15 @@ Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
    - `TELEGRAM_ADMIN_IDS`: botga `/start` yozganda chiqadigan ID (bir nechta bo'lsa vergul bilan)
 4. Redeploy, keyin saytga kirgan holda `https://SAYT/api/telegram/setup` ni oching.
 
+**Behance kabi bloklovchi saytlar uchun (Telegram preview)**
+
+Behance serverlarni bloklaydi, lekin Telegram'ga ochiq. Bot Telegram yasagan havola preview'ini o'qiydi:
+
+1. Supabase'da `supabase/003_bot_kv.sql` ni ishga tushiring.
+2. https://my.telegram.org → API development tools → ilova yarating.
+3. Vercel'ga `TELEGRAM_API_ID` va `TELEGRAM_API_HASH` (Sensitive) qo'shing va redeploy qiling.
+4. Havolani botga preview bilan yuboring (preview o'chirilmagan bo'lsin).
+
 ## Kirish (Telegram) va saqlanganlar
 
 Foydalanuvchi faqat Telegram orqali kiradi (OpenID Connect). Saqlangan ishlar Supabase bazasida turadi.

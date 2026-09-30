@@ -3,7 +3,8 @@ import { revalidatePath } from "next/cache";
 import { getPlatform } from "@/data/platforms";
 import { db } from "./db";
 import { env } from "./env";
-import { detectPlatform, extractUrl, normalizeUrl, scrapeUrl } from "./scrape";
+import { readLinkPreview } from "./mtproto";
+import { detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
 import { downloadTelegramFile, escapeHtml, tg, type InlineKeyboard } from "./telegramBot";
 import {
   copyRemoteImage,
@@ -182,7 +183,7 @@ async function onMessage(msg: TgMessage) {
   }
 
   const url = extractUrl(text);
-  if (url) return onLink(msg.chat.id, userId, url);
+  if (url) return onLink(msg.chat.id, userId, url, msg.message_id);
 
   // Tahrirlash javobi
   const state = await getState(userId);
@@ -204,7 +205,7 @@ async function onMessage(msg: TgMessage) {
   return send(msg.chat.id, "Ish qo'shish uchun Behance, Dribbble, Dprofile yoki X havolasini yuboring.");
 }
 
-async function onLink(chatId: number, userId: number, rawUrl: string) {
+async function onLink(chatId: number, userId: number, rawUrl: string, messageId: number) {
   const platform = detectPlatform(rawUrl);
   if (!platform) {
     return send(chatId, "Hozircha faqat <b>Behance, Dribbble, Dprofile va X</b> havolalari qabul qilinadi.");
@@ -221,16 +222,34 @@ async function onLink(chatId: number, userId: number, rawUrl: string) {
   }
 
   await send(chatId, "⏳ Ma'lumot olinmoqda…");
-  const scraped = await scrapeUrl(url);
-  const data = scraped?.data;
+  // Ikki manba parallel: Telegram yasagan preview (bloklanmaydi) va saytning o'zi
+  const [tgp, scraped] = await Promise.all([readLinkPreview(messageId), scrapeUrl(url)]);
+  const site = scraped?.data;
+  const notes = [tgp.note, ...(scraped?.notes ?? [])];
+  const p = tgp.preview;
+  const split = p?.title ? splitTitle(platform, p.title) : null;
+
+  const data = {
+    title: split?.title || site?.title || "",
+    description: p?.description || site?.description || null,
+    designerName: split?.designer || site?.designerName || p?.author || null,
+    designerHandle: site?.designerHandle ?? null,
+  };
 
   let image: { url: string; path: string } | null = null;
-  if (data?.image) {
+  if (p?.image) {
     try {
-      image = await copyRemoteImage(data.image);
+      image = await storeImage(p.image.bytes, p.image.type);
+    } catch (err) {
+      console.error("[bot] preview rasmini saqlab bo'lmadi:", err);
+    }
+  }
+  if (!image && site?.image) {
+    try {
+      image = await copyRemoteImage(site.image);
     } catch (err) {
       console.error("[bot] muqovani to'g'ridan-to'g'ri ko'chirib bo'lmadi:", err);
-      image = await copyImageViaTelegram(chatId, data.image);
+      image = await copyImageViaTelegram(chatId, site.image);
     }
   }
 
@@ -259,7 +278,7 @@ async function onLink(chatId: number, userId: number, rawUrl: string) {
   await sendPreview(chatId, row);
 
   const missing = [!row.image_url && "muqova", !row.title && "nom", !row.designer_name && "dizayner ismi"].filter(Boolean);
-  const why = missing.length && scraped ? `\n<i>(tekshiruv: ${escapeHtml(scraped.notes.join(" → "))})</i>` : "";
+  const why = missing.length ? `\n<i>(tekshiruv: ${escapeHtml(notes.join(" → "))})</i>` : "";
   if (!row.image_url) {
     await setState(userId, row.id, "image");
     await send(chatId, `⚠️ ${missing.join(", ")} topilmadi. Muqova rasmini shu yerga yuboring.${why}`);

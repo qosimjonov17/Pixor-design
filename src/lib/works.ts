@@ -121,7 +121,7 @@ export async function updateWork(id: string, fields: Partial<WorkRow>) {
 const BUCKET = "works";
 const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
 
-export async function storeImage(bytes: ArrayBuffer, contentType: string) {
+export async function storeImage(bytes: ArrayBuffer | Uint8Array, contentType: string) {
   const type = EXT[contentType] ? contentType : "image/jpeg";
   const path = `${new Date().toISOString().slice(0, 7)}/${crypto.randomUUID()}.${EXT[type]}`;
   const storage = db().storage.from(BUCKET);

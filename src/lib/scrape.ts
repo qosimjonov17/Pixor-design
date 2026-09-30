@@ -236,6 +236,24 @@ async function viaMicrolink(platform: Platform, url: string): Promise<{ data: Sc
   }
 }
 
+/** Sayt bizga haqiqiy sahifa o'rniga taqiq / tekshiruv sahifasini berdimi? */
+export function looksBlocked(d: Scraped | null) {
+  if (!d) return false;
+  const host = (() => {
+    try {
+      return new URL(d.url).hostname;
+    } catch {
+      return "";
+    }
+  })();
+  const text = `${d.title} ${d.description ?? ""}`;
+  return (
+    d.title === host ||
+    d.title === host.replace(/^www\./, "") ||
+    /authorization to view|access denied|just a moment|attention required|are you a robot|forbidden|captcha|verify you are human/i.test(text)
+  );
+}
+
 const score = (d: Scraped | null) => (d ? (d.title ? 2 : 0) + (d.image ? 2 : 0) + (d.designerName ? 1 : 0) + (d.description ? 1 : 0) : -1);
 
 /**
@@ -248,6 +266,10 @@ export async function scrapeUrl(url: string): Promise<{ data: Scraped; notes: st
   const notes: string[] = [];
   let best: Scraped | null = null;
   const consider = (d: Scraped | null) => {
+    if (looksBlocked(d)) {
+      notes.push("taqiq sahifasi");
+      return;
+    }
     if (score(d) > score(best)) best = d;
   };
 

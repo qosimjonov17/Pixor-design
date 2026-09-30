@@ -4,6 +4,8 @@ import type { NextConfig } from "next";
 const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL) : null;
 
 const nextConfig: NextConfig = {
+  // GramJS (Telegram MTProto) Node modullari bilan ishlaydi — bundlerga kiritmaymiz
+  serverExternalPackages: ["telegram"],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "*.supabase.co", pathname: "/storage/v1/object/public/**" },
