@@ -1,5 +1,7 @@
 /**
- * Brauzer tugmachasi (bookmarklet) kodi. Admin brauzerida, ish sahifasida ishlaydi:
+ * Brauzer tugmachasi (bookmarklet) kodi. Admin brauzerida ishlaydi.
+ * Dizaynerning profil sahifasida bosilsa — ism, avatar va bio olinadi (kind: "designer").
+ * Ish sahifasida:
  *  - loyiha manzilini qayta yuklab (Behance profil ustida oynacha ochganda ham to'g'ri bo'lsin) meta ma'lumotni oladi;
  *  - loyiha egasining ismi, profil havolasi va avatarini qidiradi;
  *  - hammasini Pixora'ning /admin/add sahifasiga (#... ichida) ochib yuboradi.
@@ -71,7 +73,42 @@ function avatarLink(doc,base,re){
     if(img&&re.test(img.getAttribute("src")||"")){return{designerUrl:abs(a.getAttribute("href"),base),designerAvatar:abs(img.getAttribute("src"),base),designer:(img.getAttribute("alt")||a.textContent||"").trim().slice(0,120)}}}
   return{};
 }
-if(h==="x.com"||h.indexOf("twitter")>=0){
+var seg=location.pathname.split("/").filter(Boolean);
+var isX=h==="x.com"||h.indexOf("twitter")>=0,isBe=h.indexOf("behance")>=0,isDr=h.indexOf("dribbble")>=0,isDp=h.indexOf("dprofile")>=0;
+function isProfile(){
+  if(seg.length<1||seg.length>2)return false;var f=seg[0].toLowerCase(),s2=(seg[1]||"").toLowerCase();
+  if(isBe)return !/^(gallery|galleries|search|joblist|assets|live|hire|for_you|featured|following|onboarding|moodboard|collection|v2)$/.test(f)&&(!s2||/^(projects|moodboards|appreciated|about|services|info)$/.test(s2));
+  if(isDr)return !/^(shots|search|tags|designers|jobs|stories|following|signup|session|uploads|account|pro|hiring|learn|resources)$/.test(f)&&(!s2||/^(shots|about|projects|collections|likes|members)$/.test(s2));
+  if(isX)return !/^(home|explore|notifications|messages|search|i|settings|compose|hashtag)$/.test(f)&&(!s2||/^(media|likes|with_replies|highlights|articles)$/.test(s2));
+  if(isDp)return seg.length===1&&!/^(case|cases|search|vacancies|tenders|blog|projects|designers|login|signup)$/.test(f);
+  return false;
+}
+if(isProfile()){
+  var d={kind:"designer",url:href,designerUrl:location.origin+"/"+seg[0],designer:"",designerAvatar:"",bio:""};
+  if(isBe){
+    var jn=document.documentElement.innerHTML.match(/"displayName"\s*:\s*"((?:[^"\\]|\\.){1,120})"/);
+    try{d.designer=jn?JSON.parse('"'+jn[1]+'"'):""}catch(e){d.designer=jn?jn[1]:""}
+    var bi=document.querySelector('[class*="UserInfo-bio"]:not([class*="ReadMore"])');d.bio=bi?bi.innerText.trim():"";if(!d.bio||/(…|\.\.\.)\s*Read More$/i.test(d.bio))d.bio=meta(document,"description")||d.bio.replace(/\s*Read More$/i,"");
+    var ai=document.querySelector('img[src*="pps.services.adobe.com"],img[src*="behance.net/user/"]');
+    if(ai){d.designerAvatar=ai.src.replace(/\/\d+(\?.*)?$/,"/276");if(!d.designer)d.designer=(ai.alt||"").replace(/'s profile$/,"")}
+  }else if(isDr){
+    d.designer=meta(document,"og:title")||(document.title||"").replace(/\s*\|\s*Dribbble$/,"");
+    var ds=meta(document,"description")||meta(document,"og:description");
+    if(ds.indexOf(d.designer+" | ")===0)ds=ds.slice(d.designer.length+3);
+    d.bio=ds.replace(/\s*\|?\s*Connect with them on Dribbble[\s\S]*$/,"").trim();
+    var da=document.querySelector("img.profile-avatar")||document.querySelector('img[src*="/avatars/"]');if(da)d.designerAvatar=da.src;
+  }else if(isX){
+    d.designer=(document.title||"").replace(/\s*\(@[^)]*\)[\s\S]*$/,"").trim();
+    var xd=document.querySelector('[data-testid="UserDescription"]');d.bio=xd?xd.innerText.trim():meta(document,"og:description");
+    var xa=document.querySelector('a[href$="/photo"] img[src*="profile_images"]')||document.querySelector('img[src*="profile_images"]');
+    if(xa)d.designerAvatar=xa.src.replace(/_(normal|bigger|200x200)\./,"_400x400.");
+  }else if(isDp){
+    var dn=document.querySelector('[class*="intro__item_content_name"]');d.designer=dn?dn.textContent.trim():(document.title||"").split(" — ")[0];
+    var dpa=document.querySelectorAll('img[alt^="Аватар пользователя"]');for(var di=0;di<dpa.length;di++){if(!dpa[di].closest("header,nav")){d.designerAvatar=dpa[di].src;break}}
+  }
+  go(d);return;
+}
+if(isX){
   var q=function(s){return document.querySelector(s)};
   var t=q('article [data-testid="tweetText"]'),un=q('article [data-testid="User-Name"] span'),im=q('article img[src*="pbs.twimg.com/media"]'),av=q('article img[src*="profile_images"]');
   var hd=location.pathname.split("/")[1]||"";

@@ -34,6 +34,14 @@ export default async function AddWorkPage() {
             <li>Panelidagi «Pixora&apos;ga qo&apos;shish» ni bosing.</li>
             <li>Ish Telegram botga preview bo&apos;lib keladi — tekshirib, ✅ ni bosing.</li>
           </ol>
+          <p>
+            <span className="text-ink">Dizayner profili:</span> dizaynerning profil sahifasida (masalan,
+            behance.net/ism) shu tugmani bossangiz — ismi, avatari va bio&apos;si saytdagi profiliga yoziladi.
+            Boshqa platformadagi havolalarini botda <b>/dizayner</b> orqali qo&apos;shasiz.
+          </p>
+          <p className="text-[13px]">
+            Tugmacha yangilangan bo&apos;lsa, eskisini o&apos;chirib, yuqoridagini qaytadan sudrab qo&apos;ying.
+          </p>
         </div>
       </div>
     </PageShell>

@@ -1,15 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import PageShell from "@/components/PageShell";
-import WorkGallery from "@/components/WorkGallery";
+import BackButton from "@/components/BackButton";
+import CategoryWorks from "@/components/CategoryWorks";
+import UserMenu from "@/components/UserMenu";
 import { savedIdsForUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { getPublishedWorksByIds } from "@/lib/works";
 
 export const metadata: Metadata = {
-  title: "Saqlanganlar — Pixora",
+  title: "Saqlangan ishlar — Pixora",
 };
 
+/** Figma: "Saqlangan ishlar" — chap menyusiz, butun kenglikda */
 export default async function SavedPage() {
   const user = await getSession();
   if (!user) redirect("/signup?next=/saved");
@@ -18,17 +20,18 @@ export default async function SavedPage() {
   const works = await getPublishedWorksByIds(savedIds);
 
   return (
-    <PageShell active={null} hero={false} tight>
-      <section aria-label="Saqlanganlar" className="flex w-full flex-col gap-6">
-        <h1 className="text-[28px] leading-[1.2] font-semibold text-ink">Saqlanganlar</h1>
-        {works.length > 0 ? (
-          <WorkGallery works={works} savedIds={savedIds} loggedIn />
-        ) : (
-          <p className="py-16 text-center text-[15px] text-subtle">
-            Hali hech narsa saqlamadingiz. Yoqqan ishni ochib, “Saqlash” tugmasini bosing.
-          </p>
-        )}
-      </section>
-    </PageShell>
+    <div className="mx-auto flex max-w-[2880px] flex-col gap-8 p-4 pt-8">
+      <header className="flex w-full items-start justify-between">
+        <BackButton />
+        <UserMenu user={user} />
+      </header>
+      <CategoryWorks
+        title="Saqlangan ishlar"
+        works={works}
+        savedIds={savedIds}
+        loggedIn
+        emptyText="Hali hech narsa saqlamadingiz. Yoqqan ishni ochib, “Saqlash” tugmasini bosing."
+      />
+    </div>
   );
 }

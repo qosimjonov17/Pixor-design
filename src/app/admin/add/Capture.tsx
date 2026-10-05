@@ -33,7 +33,7 @@ export function CaptureReceiver() {
     const raw = window.location.hash.slice(1);
     if (!raw) return;
     started.current = true;
-    let data: { url: string; title?: string };
+    let data: { url: string; title?: string; designer?: string };
     try {
       data = JSON.parse(decodeURIComponent(raw));
     } catch {
@@ -41,7 +41,7 @@ export function CaptureReceiver() {
       return;
     }
     history.replaceState(null, "", window.location.pathname);
-    queueMicrotask(() => setState({ kind: "sending", title: data.title ?? data.url }));
+    queueMicrotask(() => setState({ kind: "sending", title: data.title || data.designer || data.url }));
     submitCapture(data).then(
       (r) => setState({ kind: "done", ok: r.ok, message: r.message }),
       () => setState({ kind: "done", ok: false, message: "Server bilan bog'lanib bo'lmadi." }),

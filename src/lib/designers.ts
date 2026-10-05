@@ -17,7 +17,44 @@ export type DesignerRow = {
   avatar_url: string | null;
   avatar_path: string | null;
   created_at: string;
+  /** 007_designer_profile.sql dan keyin */
+  bio?: string | null;
+  /** Boshqa platformalardagi profillar: { x: "https://x.com/…", dribbble: "…" } */
+  links?: Partial<Record<Platform, string>> | null;
 };
+
+/** Profil sahifasidagi tugmalar tartibi (Figma: Behance, X, Dribbble) */
+const LINK_ORDER: Platform[] = ["behance", "x", "dribbble", "dprofile"];
+
+/** Asosiy profil + qo'shimcha havolalar, platforma bo'yicha bittadan */
+export function designerLinks(d: Pick<DesignerRow, "platform" | "profile_url" | "links">) {
+  const map: Partial<Record<Platform, string>> = { ...(d.links ?? {}) };
+  if (d.platform && d.profile_url) map[d.platform] = d.profile_url;
+  return LINK_ORDER.filter((p) => map[p]).map((p) => ({ platform: p, url: map[p]! }));
+}
+
+/** Istalgan profil havolasidan platformani aniqlaydi: x.com/user, behance.net/user ... */
+export function profileFromUrl(raw: string): { platform: Platform; url: string; handle: string } | null {
+  let host = "";
+  try {
+    host = new URL(raw).hostname.replace(/^www\./, "").toLowerCase();
+  } catch {
+    return null;
+  }
+  const platform: Platform | null =
+    host === "behance.net" || host.endsWith(".behance.net")
+      ? "behance"
+      : host === "dribbble.com"
+        ? "dribbble"
+        : host === "x.com" || host === "twitter.com" || host === "mobile.twitter.com"
+          ? "x"
+          : host === "dprofile.ru"
+            ? "dprofile"
+            : null;
+  if (!platform) return null;
+  const p = normalizeProfileUrl(platform, raw);
+  return p ? { platform, ...p } : null;
+}
 
 const PROFILE_HOSTS: Record<Platform, string> = {
   behance: "https://www.behance.net",
@@ -111,7 +148,7 @@ export function nameKey(name: string) {
 }
 
 /** Shu ismli barcha dizaynerlar (kalit bo'yicha), profillisi birinchi */
-async function findAllByName(name: string): Promise<DesignerRow[]> {
+export async function findAllByName(name: string): Promise<DesignerRow[]> {
   const key = nameKey(name);
   if (!key) return [];
   // Bazadan taxminiy qidiruv (harflar orasida istalgan belgi), keyin aniq kalit bilan saralaymiz
@@ -243,6 +280,30 @@ async function copyAvatar(url: string): Promise<{ avatar_url?: string; avatar_pa
   if (!adminId) return {};
   const img = await copyImageViaTelegram(Number(adminId), url);
   return img ? { avatar_url: img.url, avatar_path: img.path } : {};
+}
+
+/** Bio va havolalarni yangilaydi (bot yoki brauzer tugmachasi orqali) */
+export async function updateDesignerProfile(
+  id: string,
+  patch: { bio?: string | null; addLink?: string; clearLinks?: boolean; avatarUrl?: string | null },
+): Promise<DesignerRow> {
+  const current = await getDesignerById(id);
+  if (!current) throw new Error("Dizayner topilmadi");
+  const update: Record<string, unknown> = {};
+  if (patch.bio !== undefined) update.bio = patch.bio ? patch.bio.trim().slice(0, 1200) : null;
+  if (patch.clearLinks) update.links = {};
+  if (patch.addLink) {
+    const p = profileFromUrl(patch.addLink);
+    if (!p) throw new Error("Bu profil havolasi emas (Behance, X, Dribbble yoki Dprofile profili kerak)");
+    // Asosiy profil bilan bir xil platforma bo'lsa ham, qo'shimcha havola sifatida saqlanadi
+    update.links = { ...((patch.clearLinks ? {} : current.links) ?? {}), [p.platform]: p.url };
+  }
+  if (patch.avatarUrl) Object.assign(update, await copyAvatar(patch.avatarUrl));
+  if (!Object.keys(update).length) return current;
+  const { data, error } = await db().from("designers").update(update).eq("id", id).select("*").single();
+  if (error) throw new Error(`Dizaynerni yangilab bo'lmadi: ${error.message}`);
+  refreshSiteCache();
+  return data as DesignerRow;
 }
 
 export async function renameDesigner(id: string, name: string) {

@@ -55,6 +55,15 @@ Supabase'da `supabase/006_categories.sql` ni ishga tushiring. Bitta ish bir nech
 
 Supabase'da `supabase/004_designers.sql` ni ishga tushiring. Har bir ish dizaynerga bog'lanadi (profil havolasi bo'yicha, bo'lmasa ism bo'yicha). Botdagi 👤 Dizayner tugmasi oldingi dizaynerlarni tanlashga beradi. `/designers` va `/designers/{slug}` bazadan chiqadi.
 
+**Dizayner profili: bio va havolalar**
+
+Supabase'da `supabase/007_designer_profile.sql` ni ishga tushiring. Ikki yo'l:
+
+- Brauzer tugmachasi: dizaynerning profil sahifasida (behance.net/ism, dribbble.com/ism, x.com/ism, dprofile.ru/ism) «Pixora'ga qo'shish»ni bosing — ism, avatar va bio olinadi.
+- Botda `/dizayner` (yoki `/dizayner Ism`): 📝 Bio, 🔗 boshqa platformadagi profil havolasini qo'shish.
+
+Profil menyusidagi "Aloqa" manzili: `src/data/contact.ts`.
+
 **Behance kabi bloklovchi saytlar uchun: brauzer tugmachasi**
 
 Behance serverlarni bloklaydi. Kompyuterda `https://SAYT/admin/add` sahifasini oching (admin sifatida kirgan holda), «Pixora'ga qo'shish» tugmasini xatcho'plar paneliga sudrang. Keyin istalgan ish sahifasida shu tugmani bosing — ish botga preview bo'lib keladi.

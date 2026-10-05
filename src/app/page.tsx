@@ -1,7 +1,7 @@
-import HomeWorks from "@/components/HomeWorks";
+import CategoryWorks from "@/components/CategoryWorks";
 import PageShell from "@/components/PageShell";
 import { isCategory } from "@/data/categories";
-import { isPlatform } from "@/data/platforms";
+import { getPlatform, isPlatform } from "@/data/platforms";
 import { savedIdsForUser } from "@/lib/db";
 import { getSession } from "@/lib/session";
 import { getPublishedWorks } from "@/lib/works";
@@ -16,10 +16,15 @@ export default async function Home({ searchParams }: PageProps<"/">) {
 
   return (
     <PageShell active={activePlatform ?? "all"} category={isCategory(category) ? category : null}>
-      <HomeWorks
+      <CategoryWorks
         key={activePlatform ?? "all"}
         works={works}
-        platform={activePlatform}
+        emptyPrefix={activePlatform ? getPlatform(activePlatform).label : undefined}
+        emptyText={
+          activePlatform
+            ? `${getPlatform(activePlatform).label} bo'limida hozircha ishlar yo'q.`
+            : "Tez orada birinchi ishlar qo'shiladi."
+        }
         savedIds={savedIds}
         loggedIn={!!user}
         initialOpenId={typeof w === "string" ? w : undefined}

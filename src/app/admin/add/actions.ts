@@ -17,6 +17,8 @@ export async function submitCapture(input: BrowserCapture) {
       designerUrl: typeof input.designerUrl === "string" ? input.designerUrl : undefined,
       designerAvatar: typeof input.designerAvatar === "string" ? input.designerAvatar : undefined,
       video: typeof input.video === "string" ? input.video : undefined,
+      kind: input.kind === "designer" ? "designer" : "work",
+      bio: typeof input.bio === "string" ? input.bio.slice(0, 3000) : undefined,
     });
   } catch (err) {
     console.error("[admin/add]", err);

@@ -4,7 +4,16 @@ import { CATEGORIES, categoryLabel, defaultCategories, isCategory, normalizeCate
 import { getPlatform, type Platform } from "@/data/platforms";
 import { db } from "./db";
 import { env } from "./env";
-import { recentDesigners, resolveDesigner, getDesignerById, type DesignerRow } from "./designers";
+import {
+  designerLinks,
+  findAllByName,
+  getDesignerById,
+  profileFromUrl,
+  recentDesigners,
+  resolveDesigner,
+  updateDesignerProfile,
+  type DesignerRow,
+} from "./designers";
 import { readLinkPreview } from "./mtproto";
 import { fetchXPost, type XPost } from "./x";
 import { designerFromDescription, detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
@@ -218,6 +227,109 @@ async function clearState(userId: number) {
   await db().from("bot_state").delete().eq("tg_user_id", userId);
 }
 
+// ---------- Dizayner profili: bio va havolalar ----------
+
+type DesignerField = "designer_bio" | "designer_link";
+
+async function getDesignerState(userId: number): Promise<{ designer_id: string; awaiting: DesignerField } | null> {
+  const { data, error } = await db()
+    .from("bot_state")
+    .select("designer_id, awaiting")
+    .eq("tg_user_id", userId)
+    .maybeSingle();
+  if (error) return null; // 007_designer_profile.sql hali ishga tushirilmagan
+  const row = data as { designer_id?: string | null; awaiting?: string } | null;
+  return row?.designer_id && (row.awaiting === "designer_bio" || row.awaiting === "designer_link")
+    ? { designer_id: row.designer_id, awaiting: row.awaiting }
+    : null;
+}
+
+async function setDesignerState(userId: number, designerId: string, awaiting: DesignerField) {
+  const { error } = await db().from("bot_state").upsert({
+    tg_user_id: userId,
+    work_id: null,
+    designer_id: designerId,
+    awaiting,
+    updated_at: new Date().toISOString(),
+  });
+  if (error) {
+    throw new Error(
+      /designer_id|awaiting_check/.test(error.message)
+        ? "Supabase'da supabase/007_designer_profile.sql ni ishga tushiring"
+        : error.message,
+    );
+  }
+}
+
+function siteDesignerUrl(d: DesignerRow) {
+  return `${env.siteUrl}/designers/${d.slug}`;
+}
+
+/** Dizayner kartochkasi: nima bor, nima yo'q va tahrirlash tugmalari */
+async function sendDesignerCard(chatId: number, d: DesignerRow) {
+  const links = designerLinks(d);
+  const lines = [
+    `👤 <b>${escapeHtml(d.name)}</b>${d.handle ? ` (@${escapeHtml(d.handle)})` : ""}`,
+    "",
+    links.length
+      ? `🔗 ${links.map((l) => `<a href="${escapeHtml(l.url)}">${getPlatform(l.platform).label}</a>`).join(" · ")}`
+      : "🔗 Havolalar yo'q",
+    d.bio ? `\n<blockquote expandable>${escapeHtml(clip(d.bio, 900))}</blockquote>` : "📝 Bio yo'q",
+    "",
+    "<i>💡 Avtomatik olish: kompyuterda dizaynerning profil sahifasini ochib, «Pixora'ga qo'shish» tugmachasini bosing.</i>",
+  ];
+  return send(chatId, lines.join("\n"), {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "📝 Bio", callback_data: `dzb:${d.id}` },
+          { text: "🔗 Havola qo'shish", callback_data: `dzl:${d.id}` },
+        ],
+        ...(d.links && Object.keys(d.links).length
+          ? [[{ text: "🧹 Qo'shimcha havolalarni tozalash", callback_data: `dzc:${d.id}` }]]
+          : []),
+        [{ text: "🌐 Saytda ko'rish", url: siteDesignerUrl(d) }],
+      ],
+    },
+  });
+}
+
+/** /dizayner — oxirgi dizaynerlar; /dizayner Ism — ism bo'yicha qidirish */
+async function onDesignerCommand(chatId: number, query: string) {
+  const list = query ? await findAllByName(query) : await recentDesigners(12);
+  if (!list.length) {
+    return send(chatId, query ? `«${escapeHtml(query)}» topilmadi. Ismni boshqacha yozib ko'ring.` : "Hali dizaynerlar yo'q.");
+  }
+  if (list.length === 1) return sendDesignerCard(chatId, list[0]);
+  return send(chatId, "👤 Qaysi dizayner? (Ism bo'yicha qidirish: <code>/dizayner Ism</code>)", {
+    reply_markup: {
+      inline_keyboard: list.slice(0, 12).map((d) => [{ text: `👤 ${clip(d.name, 40)}`, callback_data: `dz:${d.id}` }]),
+    },
+  });
+}
+
+/** Bio yoki havola kutilayotgan bo'lsa — shu xabarni o'shanga yozadi. true = ishlandi */
+async function onDesignerReply(chatId: number, userId: number, text: string): Promise<boolean> {
+  const state = await getDesignerState(userId);
+  if (!state || !text || text.startsWith("/")) return false;
+  if (state.awaiting === "designer_link") {
+    const url = extractUrl(text);
+    if (!url || !profileFromUrl(url)) {
+      // Bu profil havolasi emas (masalan, ish havolasi) — odatdagidek ishlaymiz
+      await clearState(userId);
+      return false;
+    }
+    const d = await updateDesignerProfile(state.designer_id, { addLink: url });
+    await clearState(userId);
+    await sendDesignerCard(chatId, d);
+    return true;
+  }
+  const d = await updateDesignerProfile(state.designer_id, { bio: text === "-" ? null : text });
+  await clearState(userId);
+  await sendDesignerCard(chatId, d);
+  return true;
+}
+
 // ---------- Asosiy ishlov ----------
 
 export async function handleUpdate(update: TgUpdate) {
@@ -246,13 +358,17 @@ async function onMessage(msg: TgMessage) {
       [
         `👋 Salom! Sizning Telegram ID: <code>${userId}</code>`,
         admin
-          ? "\n✅ Siz adminsiz. Behance, Dribbble, Dprofile yoki X havolasini yuboring — ishni tayyorlab beraman."
+          ? "\n✅ Siz adminsiz. Behance, Dribbble, Dprofile yoki X havolasini yuboring — ishni tayyorlab beraman.\n👤 /dizayner — dizayner bio va havolalari."
           : "\nBotni boshqarish uchun bu ID'ni Vercel'dagi <code>TELEGRAM_ADMIN_IDS</code> ga qo'shing.",
       ].join("\n"),
     );
   }
 
   if (!isAdmin(userId)) return; // begonalarga javob bermaymiz
+
+  const dz = text.match(/^\/(dizayner|designer)(?:@\w+)?\s*([\s\S]*)$/i);
+  if (dz) return onDesignerCommand(msg.chat.id, dz[2].trim());
+  if (!msg.photo && !msg.document && (await onDesignerReply(msg.chat.id, userId, text))) return;
 
   // Rasm keldi
   const photo = msg.photo?.at(-1);
@@ -491,19 +607,55 @@ export type BrowserCapture = {
   designerAvatar?: string;
   /** Sahifadagi video (MP4), masalan Dribbble video shot */
   video?: string;
+  /** "designer" — tugmacha dizaynerning profil sahifasida bosilgan */
+  kind?: "work" | "designer";
+  /** Profil sahifasidagi "o'zi haqida" matni */
+  bio?: string;
 };
+
+/** Profil sahifasidan: dizaynerni topadi/yaratadi, bio va avatarni yangilaydi, botga kartochka yuboradi */
+async function addDesignerFromBrowser(input: BrowserCapture, chatId: number) {
+  const profile = profileFromUrl(input.designerUrl || input.url);
+  if (!profile) return { ok: false as const, message: "Bu sahifa dizayner profili emas." };
+  let designer = await resolveDesigner({
+    name: input.designer || null,
+    platform: profile.platform,
+    profileUrl: profile.url,
+    avatarUrl: input.designerAvatar || null,
+  });
+  if (!designer) return { ok: false as const, message: "Dizaynerni aniqlab bo'lmadi." };
+  const bio = input.bio
+    ?.split("\n")
+    .map((l) => l.trim())
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  if (bio) designer = await updateDesignerProfile(designer.id, { bio });
+  await sendDesignerCard(chatId, designer);
+  const got = [
+    `ism ${input.designer ? "✓" : "✗"}`,
+    `avatar ${designer.avatar_url ? "✓" : "✗"}`,
+    `bio ${bio ? "✓" : "✗"}`,
+  ].join(", ");
+  return {
+    ok: true as const,
+    message: `👤 ${designer.name} — profil yangilandi (${got}).\nBotda bio va boshqa havolalarni tuzatsa bo'ladi.\n${siteDesignerUrl(designer)}`,
+  };
+}
 
 /**
  * Brauzer tugmachasi (bookmarklet) orqali kelgan ma'lumot: sahifa admin brauzerida
  * o'qilgan, shuning uchun Behance bloklay olmaydi. Natija adminga botda preview bo'lib boradi.
  */
 export async function addFromBrowser(input: BrowserCapture): Promise<{ ok: true; message: string } | { ok: false; message: string }> {
-  const platform = detectPlatform(input.url);
-  if (!platform) return { ok: false, message: "Bu sahifa Behance, Dribbble, Dprofile yoki X emas." };
-  const url = normalizeUrl(input.url);
   const adminId = [...env.botAdminIds][0];
   if (!adminId) return { ok: false, message: "TELEGRAM_ADMIN_IDS sozlanmagan." };
   const chatId = Number(adminId);
+  if (input.kind === "designer") return addDesignerFromBrowser(input, chatId);
+
+  const platform = detectPlatform(input.url);
+  if (!platform) return { ok: false, message: "Bu sahifa Behance, Dribbble, Dprofile yoki X emas." };
+  const url = normalizeUrl(input.url);
 
   const existing = await findWorkBySource(url);
   if (existing?.status === "published") {
@@ -672,6 +824,28 @@ async function onCallback(cb: TgCallback) {
     await answer(designer.name);
     return sendPreview(chatId, updated);
   }
+  if (action === "dz" || action === "dzb" || action === "dzl" || action === "dzc") {
+    const d = await getDesignerById(a ?? "");
+    if (!d || !chatId) return answer("Dizayner topilmadi", true);
+    if (action === "dz") {
+      await answer();
+      return sendDesignerCard(chatId, d);
+    }
+    if (action === "dzc") {
+      const updated = await updateDesignerProfile(d.id, { clearLinks: true });
+      await answer("Tozalandi");
+      return sendDesignerCard(chatId, updated);
+    }
+    await setDesignerState(cb.from.id, d.id, action === "dzb" ? "designer_bio" : "designer_link");
+    await answer();
+    return send(
+      chatId,
+      action === "dzb"
+        ? `📝 <b>${escapeHtml(d.name)}</b> uchun bio yozing (o'chirish uchun <code>-</code>):`
+        : `🔗 <b>${escapeHtml(d.name)}</b>ning boshqa platformadagi profil havolasini yuboring (Behance, X, Dribbble yoki Dprofile):`,
+    );
+  }
+
   const workId = action === "e" || action === "c" ? b : a;
   const row = await getWorkRow(workId ?? "");
   if (!row || !chatId) return answer("Ish topilmadi", true);
@@ -771,7 +945,11 @@ async function onCallback(cb: TgCallback) {
     revalidatePath("/designers", "layout");
     await clearState(cb.from.id);
     await dropKeyboard();
-    return send(chatId, `✅ Chop etildi — saytda va kanalda.\n${siteWorkUrl(published.id)}`);
+    return send(chatId, `✅ Chop etildi — saytda va kanalda.\n${siteWorkUrl(published.id)}`, {
+      ...(published.designer_id
+        ? { reply_markup: { inline_keyboard: [[{ text: "👤 Dizayner profili (bio, havolalar)", callback_data: `dz:${published.designer_id}` }]] } }
+        : {}),
+    });
   }
 
   return answer();
