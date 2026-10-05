@@ -1,3 +1,4 @@
+import type { Category } from "./categories";
 import type { Platform } from "./platforms";
 
 /**
@@ -16,6 +17,8 @@ export type Work = {
   image?: string;
   /** Video (X'dagi video/GIF postlar). image — uning birinchi kadri (poster). */
   video?: { url: string; kind: "animation" | "video" };
+  /** Case / UI / Branding (bir nechtasi bo'lishi mumkin) */
+  categories: Category[];
   /** Ko'rish oynasidagi qisqa tavsif */
   description?: string;
   designer: {

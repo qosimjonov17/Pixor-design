@@ -47,6 +47,10 @@ Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
 
 Supabase'da `supabase/005_video.sql` ni ishga tushiring. X'dagi video/GIF postlar MP4 bo'lib saqlanadi: ovozsizi kanalga GIF kabi (sendAnimation), ovozlisi video bo'lib chiqadi; saytda o'zi o'ynaydi. 45 MB gacha. `X_SYNDICATION_BASE` va `FXTWITTER_BASE` — faqat lokal sinov uchun, Vercel'da o'rnatilmaydi.
 
+**Kategoriyalar (Case, UI, Branding)**
+
+Supabase'da `supabase/006_categories.sql` ni ishga tushiring. Bitta ish bir nechta kategoriyada bo'lishi mumkin. Botdagi preview'da ☑️ Case / UI / Branding tugmalari bor: Behance'dan kelgani oldindan Case, qolganlari UI bo'lib belgilanadi. Chop etilgan ishning kategoriyasini o'zgartirish uchun uning havolasini botga qayta yuboring. Saytda: `/?category=case`, platforma bilan birga `/?platform=behance&category=case`.
+
 **Dizaynerlar**
 
 Supabase'da `supabase/004_designers.sql` ni ishga tushiring. Har bir ish dizaynerga bog'lanadi (profil havolasi bo'yicha, bo'lmasa ism bo'yicha). Botdagi 👤 Dizayner tugmasi oldingi dizaynerlarni tanlashga beradi. `/designers` va `/designers/{slug}` bazadan chiqadi.

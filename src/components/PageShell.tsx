@@ -1,3 +1,4 @@
+import type { Category } from "@/data/categories";
 import FancyButton from "@/components/FancyButton";
 import Sidebar, { MobileNav, type NavSection } from "@/components/Sidebar";
 import UserMenu from "@/components/UserMenu";
@@ -11,8 +12,11 @@ export default async function PageShell({
   active,
   hero = true,
   tight = false,
+  category,
   children,
 }: {
+  /** Bosh sahifada tanlangan kategoriya — menyudagi platforma havolalari uni saqlaydi */
+  category?: Category | null;
   /** Menyuda faol bo'lim; null — hech biri (masalan, Saqlanganlar) */
   active: NavSection | null;
   /** Sarlavha ("Soatlab qidirmang...") ko'rsatilsinmi. "Tez kunda" sahifalarida yo'q. */
@@ -27,7 +31,7 @@ export default async function PageShell({
     <div className="mx-auto flex max-w-[2880px] items-start gap-4 p-4">
       {/* Menyu scroll paytida ekranda qotib turadi (sticky o'rovchi blokda bo'lishi shart) */}
       <div className="sticky top-4 hidden self-start lg:block">
-        <Sidebar active={active} />
+        <Sidebar active={active} category={category} />
       </div>
 
       <main
@@ -52,7 +56,7 @@ export default async function PageShell({
           )}
 
           <div className="w-full lg:hidden">
-            <MobileNav active={active} />
+            <MobileNav active={active} category={category} />
           </div>
         </header>
 

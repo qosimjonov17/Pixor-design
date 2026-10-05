@@ -1,4 +1,5 @@
 import "server-only";
+import { normalizeCategories } from "@/data/categories";
 import type { Platform } from "@/data/platforms";
 import type { Work } from "@/data/works";
 import { unstable_cache } from "next/cache";
@@ -20,6 +21,8 @@ export type WorkRow = {
   video_path?: string | null;
   video_kind?: "animation" | "video" | null;
   video_size?: number | null;
+  /** 006_categories.sql dan keyin bor */
+  categories?: string[] | null;
   status: "draft" | "published" | "rejected";
   created_by_tg: number | null;
   channel_message_id: number | null;
@@ -50,6 +53,7 @@ export function toWork(row: WorkRow, designer?: DesignerLite): Work {
     url: row.source_url,
     image: row.image_url ?? undefined,
     video: row.video_url ? { url: row.video_url, kind: row.video_kind ?? "animation" } : undefined,
+    categories: normalizeCategories(row.categories),
     description: row.description ?? undefined,
     designer: {
       name,

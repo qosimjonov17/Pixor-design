@@ -6,6 +6,7 @@ import { ViewerVideo } from "@/components/AutoVideo";
 import { CARD_IMAGE_SIZES, optimizedImageUrl } from "@/data/media";
 import SaveButton from "@/components/SaveButton";
 import { PersonRow, SoftLink } from "@/components/ui";
+import { categoryLabel } from "@/data/categories";
 import { getPlatform, viewOnLabel } from "@/data/platforms";
 import { CURATOR, type Work } from "@/data/works";
 
@@ -140,6 +141,20 @@ export default function WorkViewer({
               <h2 className="text-[16px] leading-[1.6] font-medium text-ink">{work.title}</h2>
               <p className="text-[14px] leading-[1.4] text-subtle">on {platform.label}</p>
             </div>
+
+            {work.categories.length > 0 && (
+              <ul aria-label="Kategoriyalar" className="flex flex-wrap gap-1">
+                {work.categories.map((c) => (
+                  <li
+                    key={c}
+                    className="rounded-md border-[0.5px] border-muted px-2 py-1 text-[12px] leading-3 font-medium tracking-[0.24px] text-[#62748e]"
+                    style={{ fontFeatureSettings: '"calt" 0, "liga" 0' }}
+                  >
+                    {categoryLabel(c)}
+                  </li>
+                ))}
+              </ul>
+            )}
 
             <hr className="border-placeholder" />
 

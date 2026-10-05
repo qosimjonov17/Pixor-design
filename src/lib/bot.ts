@@ -1,5 +1,6 @@
 import "server-only";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { CATEGORIES, categoryLabel, defaultCategories, isCategory, normalizeCategories } from "@/data/categories";
 import { getPlatform, type Platform } from "@/data/platforms";
 import { db } from "./db";
 import { env } from "./env";
@@ -8,7 +9,7 @@ import { readLinkPreview } from "./mtproto";
 import { fetchXPost, type XPost } from "./x";
 import { designerFromDescription, detectPlatform, extractUrl, normalizeUrl, scrapeUrl, splitTitle } from "./scrape";
 import { copyImageViaTelegram } from "./telegramMedia";
-import { downloadTelegramFile, escapeHtml, tg, tgUpload, type InlineKeyboard } from "./telegramBot";
+import { downloadTelegramFile, escapeHtml, tg, tgUpload, type InlineButton, type InlineKeyboard } from "./telegramBot";
 import {
   copyRemoteImage,
   copyRemoteVideo,
@@ -91,14 +92,28 @@ function previewCaption(row: WorkRow) {
   if (row.video_url) {
     notes.push(row.video_kind === "video" ? "🎬 Video (ovozli) — kanalga video bo'lib chiqadi." : "🎬 Video (ovozsiz) — kanalga GIF kabi chiqadi.");
   }
+  if (row.categories) notes.push("📂 Kategoriya — pastdagi ☑️ tugmalar (bir nechtasini tanlash mumkin).");
   notes.push("Kanalda pastda «Pixora'da ko'rish» tugmasi bo'ladi. Chiqarish uchun ✅ ni bosing.");
   return `${channelCaption(row, 330)}\n\n— — —\n<i>${notes.join("\n")}</i>`;
+}
+
+/** Case / UI / Branding: bosilganda yoqiladi/o'chiriladi (bazada ustun bo'lmasa — ko'rsatilmaydi) */
+function categoryRow(row: WorkRow): InlineButton[][] {
+  if (!row.categories) return [];
+  const on = new Set(normalizeCategories(row.categories));
+  return [
+    CATEGORIES.map((c) => ({
+      text: `${on.has(c.id) ? "☑️" : "⬜"} ${c.label}`,
+      callback_data: `c:${c.id}:${row.id}`,
+    })),
+  ];
 }
 
 function previewKeyboard(row: WorkRow): InlineKeyboard {
   return {
     inline_keyboard: [
       [{ text: "✅ Chop etish", callback_data: `p:${row.id}` }],
+      ...categoryRow(row),
       [
         { text: "✏️ Nom", callback_data: `e:title:${row.id}` },
         { text: "👤 Dizayner", callback_data: `e:designer:${row.id}` },
@@ -289,7 +304,10 @@ async function onLink(chatId: number, userId: number, rawUrl: string, messageId:
 
   const existing = await findWorkBySource(url);
   if (existing?.status === "published") {
-    return send(chatId, `✅ Bu ish allaqachon saytda bor:\n${siteWorkUrl(existing.id)}`);
+    const fix = existing.categories ? "\n\n📂 Kategoriyasini shu yerda o'zgartirsa bo'ladi:" : "";
+    return send(chatId, `✅ Bu ish allaqachon saytda bor:\n${siteWorkUrl(existing.id)}${fix}`, {
+      reply_markup: { inline_keyboard: categoryRow(existing) },
+    });
   }
   if (existing?.status === "draft" && existing.image_url && existing.title) {
     await send(chatId, "Bu havola qoralamada turibdi, mana u:");
@@ -391,6 +409,19 @@ function designerFields(designer: DesignerRow | null, fallbackName: string | nul
     : { designer_id: null, designer_name: fallbackName ?? "" };
 }
 
+/** 006_categories.sql hali ishga tushirilmagan bo'lsa ham bot ishlayversin */
+async function withoutMissingCategories<T>(withIt: () => Promise<T>, without: () => Promise<T>): Promise<T> {
+  try {
+    return await withIt();
+  } catch (err) {
+    if (err instanceof Error && /categories/.test(err.message)) {
+      console.error("[bot] categories ustuni yo'q — supabase/006_categories.sql ni ishga tushiring");
+      return without();
+    }
+    throw err;
+  }
+}
+
 /** Qoralamani saqlaydi va adminga preview (tugmalar bilan) yuboradi */
 async function saveDraftAndPreview({ chatId, userId, url, platform, existing, data, image, notes, designer, video }: DraftInput) {
   const fields = {
@@ -408,6 +439,7 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
     created_by_tg: userId,
     status: "draft" as const,
   };
+  const withCategories = { ...fields, categories: defaultCategories(platform) };
 
   let row: WorkRow;
   if (existing) {
@@ -415,9 +447,15 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
     await clearState(userId);
     await deleteImage(existing.image_path);
     await deleteImage(existing.video_path ?? null);
-    row = await updateWork(existing.id, fields);
+    row = await withoutMissingCategories(
+      () => updateWork(existing.id, withCategories),
+      () => updateWork(existing.id, fields),
+    );
   } else {
-    row = await insertDraft({ source_url: url, ...fields });
+    row = await withoutMissingCategories(
+      () => insertDraft({ source_url: url, ...withCategories }),
+      () => insertDraft({ source_url: url, ...fields }),
+    );
   }
 
   await sendPreview(chatId, row);
@@ -634,7 +672,7 @@ async function onCallback(cb: TgCallback) {
     await answer(designer.name);
     return sendPreview(chatId, updated);
   }
-  const workId = action === "e" ? b : a;
+  const workId = action === "e" || action === "c" ? b : a;
   const row = await getWorkRow(workId ?? "");
   if (!row || !chatId) return answer("Ish topilmadi", true);
 
@@ -657,6 +695,26 @@ async function onCallback(cb: TgCallback) {
       }
     }
     return send(chatId, FIELD_PROMPTS[field]);
+  }
+
+  // Kategoriya: yoqish/o'chirish (chop etilgan ishda ham — sayt darhol yangilanadi)
+  if (action === "c") {
+    if (!isCategory(a) || !row.categories || row.status === "rejected") return answer();
+    const current = normalizeCategories(row.categories);
+    const on = current.includes(a);
+    const next = on ? current.filter((c) => c !== a) : normalizeCategories([...current, a]);
+    if (row.status === "published" && next.length === 0) return answer("Kamida bitta kategoriya qolsin", true);
+    const updated = await updateWork(row.id, { categories: next });
+    if (updated.status === "published") {
+      revalidateTag(WORKS_TAG, { expire: 0 });
+      revalidatePath("/");
+    }
+    if (cb.message) {
+      const reply_markup =
+        updated.status === "draft" ? previewKeyboard(updated) : { inline_keyboard: categoryRow(updated) };
+      await tg("editMessageReplyMarkup", { chat_id: chatId, message_id: cb.message.message_id, reply_markup }).catch(() => {});
+    }
+    return answer(`${categoryLabel(a)} ${on ? "olib tashlandi" : "qo'shildi"}`);
   }
 
   if (action === "x") {
@@ -682,6 +740,9 @@ async function onCallback(cb: TgCallback) {
     if (row.status === "published") return answer("Allaqachon chop etilgan", true);
     if (!row.image_url && !row.video_url) return answer("Avval muqova rasmini qo'shing (🖼 Rasm)", true);
     if (!row.title && row.platform !== "x") return answer("Avval nom qo'shing (✏️ Nom)", true);
+    if (row.categories && normalizeCategories(row.categories).length === 0) {
+      return answer("Avval kategoriyani tanlang: Case, UI yoki Branding", true);
+    }
     if (row.platform === "x" && !row.designer_name && !row.description) {
       return answer("Avval dizayner yoki post matnini qo'shing (👤 / 📄)", true);
     }

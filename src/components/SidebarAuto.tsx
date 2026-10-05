@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
+import { isCategory } from "@/data/categories";
 import { isPlatform } from "@/data/platforms";
 import Sidebar, { MobileNav, type NavSection } from "./Sidebar";
 
@@ -14,10 +15,15 @@ function useActiveSection(): NavSection | null {
   return null;
 }
 
+function useCategory() {
+  const c = useSearchParams().get("category");
+  return usePathname() === "/" && isCategory(c) ? c : null;
+}
+
 export function SidebarAuto() {
-  return <Sidebar active={useActiveSection()} />;
+  return <Sidebar active={useActiveSection()} category={useCategory()} />;
 }
 
 export function MobileNavAuto() {
-  return <MobileNav active={useActiveSection()} />;
+  return <MobileNav active={useActiveSection()} category={useCategory()} />;
 }

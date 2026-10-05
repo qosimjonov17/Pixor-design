@@ -1,5 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
+import { homeHref, type Category } from "@/data/categories";
 import { PLATFORMS, type Platform } from "@/data/platforms";
 
 /** Qaysi bo'lim faol: "all" (Barchasi), platforma, yoki alohida sahifa */
@@ -27,6 +28,15 @@ const PLATFORM_ITEMS: NavItem[] = [
   },
   ...PLATFORMS.map((p) => ({ id: p.id, href: `/?platform=${p.id}`, label: p.label, icon: p.icon })),
 ];
+
+/** Platforma tugmalari tanlangan kategoriyani (Case/UI/Branding) tashlab yubormasin */
+function platformItems(category: Category | null | undefined): NavItem[] {
+  if (!category) return PLATFORM_ITEMS;
+  return PLATFORM_ITEMS.map((item) => ({
+    ...item,
+    href: homeHref(item.id === "all" ? null : (item.id as Platform), category),
+  }));
+}
 
 const PAGE_ITEMS: NavItem[] = [
   {
@@ -65,7 +75,7 @@ function NavButton({ item, active }: { item: NavItem; active: boolean }) {
   );
 }
 
-export default function Sidebar({ active }: { active: NavSection | null }) {
+export default function Sidebar({ active, category }: { active: NavSection | null; category?: Category | null }) {
   return (
     <nav
       aria-label="Bo'limlar"
@@ -74,7 +84,7 @@ export default function Sidebar({ active }: { active: NavSection | null }) {
       <div className="flex w-full flex-col gap-3">
         <p className="px-4 text-[18px] leading-[1.25] font-medium text-muted">Bo’limlar</p>
         <div className="flex w-full flex-col gap-2.5 px-4">
-          {PLATFORM_ITEMS.map((item) => (
+          {platformItems(category).map((item) => (
             <NavButton key={item.id} item={item} active={active === item.id} />
           ))}
         </div>
@@ -91,10 +101,10 @@ export default function Sidebar({ active }: { active: NavSection | null }) {
 }
 
 /** Kichik ekranlar uchun: sidebar o'rniga gorizontal suriladigan menyu */
-export function MobileNav({ active }: { active: NavSection | null }) {
+export function MobileNav({ active, category }: { active: NavSection | null; category?: Category | null }) {
   return (
     <nav aria-label="Bo'limlar" className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-      {[...PLATFORM_ITEMS, ...PAGE_ITEMS].map((item) => {
+      {[...platformItems(category), ...PAGE_ITEMS].map((item) => {
         const isActive = active === item.id;
         const icon = isActive && item.activeIcon ? item.activeIcon : item.icon;
         return (
