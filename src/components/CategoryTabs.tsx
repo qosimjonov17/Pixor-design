@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import { CATEGORIES, homeHref, type Category } from "@/data/categories";
 import type { Platform } from "@/data/platforms";
@@ -10,10 +12,13 @@ export default function CategoryTabs({
   platform,
   active,
   count,
+  onSelect,
 }: {
   platform: Platform | null;
   active: Category | null;
   count: number;
+  /** Bosilganda serverga bormasdan darhol filtrlash */
+  onSelect: (category: Category | null) => void;
 }) {
   const tabs: { id: Category | null; label: string }[] = [{ id: null, label: "Barchasi" }, ...CATEGORIES];
 
@@ -27,7 +32,12 @@ export default function CategoryTabs({
               key={tab.label}
               href={homeHref(platform, tab.id)}
               aria-current={isActive ? "page" : undefined}
-              scroll={false}
+              onClick={(e) => {
+                // Yangi oynada ochish (Ctrl/Cmd/o'rta tugma) odatdagidek ishlasin
+                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+                e.preventDefault();
+                onSelect(tab.id);
+              }}
               className={
                 base +
                 (isActive

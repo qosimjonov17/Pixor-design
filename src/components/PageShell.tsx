@@ -1,6 +1,8 @@
 import type { Category } from "@/data/categories";
 import FancyButton from "@/components/FancyButton";
+import { Suspense } from "react";
 import Sidebar, { MobileNav, type NavSection } from "@/components/Sidebar";
+import { MobileNavAuto, SidebarAuto } from "@/components/SidebarAuto";
 import UserMenu from "@/components/UserMenu";
 import { getSession } from "@/lib/session";
 
@@ -31,7 +33,10 @@ export default async function PageShell({
     <div className="mx-auto flex max-w-[2880px] items-start gap-4 p-4">
       {/* Menyu scroll paytida ekranda qotib turadi (sticky o'rovchi blokda bo'lishi shart) */}
       <div className="sticky top-4 hidden self-start lg:block">
-        <Sidebar active={active} category={category} />
+        {/* Tab bosilganda manzil brauzerda o'zgaradi — menyu havolalari ham shundan o'qiydi */}
+        <Suspense fallback={<Sidebar active={active} category={category} />}>
+          <SidebarAuto />
+        </Suspense>
       </div>
 
       <main
@@ -56,7 +61,9 @@ export default async function PageShell({
           )}
 
           <div className="w-full lg:hidden">
-            <MobileNav active={active} category={category} />
+            <Suspense fallback={<MobileNav active={active} category={category} />}>
+              <MobileNavAuto />
+            </Suspense>
           </div>
         </header>
 
