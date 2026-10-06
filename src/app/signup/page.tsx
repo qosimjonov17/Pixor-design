@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { getSession, safeNext } from "@/lib/session";
 
 export const metadata: Metadata = {
-  title: "Kirish — Pixora",
+  title: "Kirish — Pixor",
 };
 
 const ERRORS: Record<string, string> = {

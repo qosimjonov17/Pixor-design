@@ -8,7 +8,7 @@ import { getSession } from "@/lib/session";
 import { getPublishedWorksByIds } from "@/lib/works";
 
 export const metadata: Metadata = {
-  title: "Saqlangan ishlar — Pixora",
+  title: "Saqlangan ishlar — Pixor",
 };
 
 /** Figma: "Saqlangan ishlar" — chap menyusiz, butun kenglikda */

@@ -3,7 +3,7 @@ import ComingSoonSection from "@/components/ComingSoonSection";
 import PageShell from "@/components/PageShell";
 
 export const metadata: Metadata = {
-  title: "Yetakchilar — Pixora",
+  title: "Yetakchilar — Pixor",
 };
 
 export default function LeaderboardPage() {

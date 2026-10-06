@@ -5,7 +5,7 @@ import { env } from "@/lib/env";
 import { BookmarkletLink, CaptureReceiver } from "./Capture";
 
 export const maxDuration = 60;
-export const metadata = { title: "Ish qo'shish — Pixora", robots: { index: false } };
+export const metadata = { title: "Ish qo'shish — Pixor", robots: { index: false } };
 
 export default async function AddWorkPage() {
   const { user, admin } = await isSiteAdmin();
@@ -31,7 +31,7 @@ export default async function AddWorkPage() {
           <p className="text-ink">Ishlatish:</p>
           <ol className="list-decimal space-y-1 pl-5">
             <li>Behance, Dribbble, Dprofile yoki X&apos;dagi ish sahifasini oching.</li>
-            <li>Panelidagi «Pixora&apos;ga qo&apos;shish» ni bosing.</li>
+            <li>Panelidagi «Pixor&apos;ga qo&apos;shish» ni bosing.</li>
             <li>Ish Telegram botga preview bo&apos;lib keladi — tekshirib, ✅ ni bosing.</li>
           </ol>
           <p>

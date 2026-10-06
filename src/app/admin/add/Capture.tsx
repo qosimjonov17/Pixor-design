@@ -16,7 +16,7 @@ export function BookmarkletLink({ site }: { site: string }) {
       onClick={(e) => e.preventDefault()}
       className="inline-flex cursor-grab items-center gap-2 rounded-[10px] bg-brand px-4 py-[9px] text-[14px] leading-[18px] font-medium text-white shadow-fancy"
     >
-      ➕ Pixora&apos;ga qo&apos;shish
+      ➕ Pixor&apos;ga qo&apos;shish
     </a>
   );
 }

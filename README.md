@@ -1,4 +1,4 @@
-# Pixora
+# Pixor
 
 Behance, Dribbble, X va Dprofile'dagi eng yaxshi dizayn ishlarini bitta lentada yig'adigan sayt.
 
@@ -31,7 +31,7 @@ Ishlar Supabase'dagi `works` jadvalida turadi va bot orqali qo'shiladi:
 1. Botga Behance / Dribbble / Dprofile / X havolasini yuborasiz.
 2. Bot muqova, nom, tavsif va dizayner ismini oladi va preview ko'rsatadi.
 3. Kerak bo'lsa ✏️ tugmalar bilan tuzatasiz (muqova topilmasa, rasmni o'zingiz yuborasiz).
-4. ✅ Chop etish: ish saytga va kanalga chiqadi. Kanal postining pastida "Pixora'da ko'rish" tugmasi bo'ladi.
+4. ✅ Chop etish: ish saytga va kanalga chiqadi. Kanal postining pastida "Pixor'da ko'rish" tugmasi bo'ladi.
 
 **Bir martalik sozlash**
 
@@ -59,14 +59,14 @@ Supabase'da `supabase/004_designers.sql` ni ishga tushiring. Har bir ish dizayne
 
 Supabase'da `supabase/007_designer_profile.sql` ni ishga tushiring. Ikki yo'l:
 
-- Brauzer tugmachasi: dizaynerning profil sahifasida (behance.net/ism, dribbble.com/ism, x.com/ism, dprofile.ru/ism) «Pixora'ga qo'shish»ni bosing — ism, avatar va bio olinadi.
+- Brauzer tugmachasi: dizaynerning profil sahifasida (behance.net/ism, dribbble.com/ism, x.com/ism, dprofile.ru/ism) «Pixor'ga qo'shish»ni bosing — ism, avatar va bio olinadi.
 - Botda `/dizayner` (yoki `/dizayner Ism`): 📝 Bio, 🔗 boshqa platformadagi profil havolasini qo'shish.
 
 Profil menyusidagi "Aloqa" manzili: `src/data/contact.ts`.
 
 **Behance kabi bloklovchi saytlar uchun: brauzer tugmachasi**
 
-Behance serverlarni bloklaydi. Kompyuterda `https://SAYT/admin/add` sahifasini oching (admin sifatida kirgan holda), «Pixora'ga qo'shish» tugmasini xatcho'plar paneliga sudrang. Keyin istalgan ish sahifasida shu tugmani bosing — ish botga preview bo'lib keladi.
+Behance serverlarni bloklaydi. Kompyuterda `https://SAYT/admin/add` sahifasini oching (admin sifatida kirgan holda), «Pixor'ga qo'shish» tugmasini xatcho'plar paneliga sudrang. Keyin istalgan ish sahifasida shu tugmani bosing — ish botga preview bo'lib keladi.
 
 **Telegram preview (qo'shimcha, ixtiyoriy)**
 

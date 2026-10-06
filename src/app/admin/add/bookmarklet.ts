@@ -4,7 +4,7 @@
  * Ish sahifasida:
  *  - loyiha manzilini qayta yuklab (Behance profil ustida oynacha ochganda ham to'g'ri bo'lsin) meta ma'lumotni oladi;
  *  - loyiha egasining ismi, profil havolasi va avatarini qidiradi;
- *  - hammasini Pixora'ning /admin/add sahifasiga (#... ichida) ochib yuboradi.
+ *  - hammasini Pixor'ning /admin/add sahifasiga (#... ichida) ochib yuboradi.
  * String.raw — ichidagi "\" belgilari o'zgarmasin.
  */
 const SOURCE = String.raw`(function(){

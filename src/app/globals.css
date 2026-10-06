@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /*
- * Pixora dizayn tokenlari (Figma "Main page" dan olingan).
+ * Pixor dizayn tokenlari (Figma "Main page" dan olingan).
  * Tailwind klasslari orqali ishlatiladi: bg-surface, text-muted, rounded-card va h.k.
  */
 @theme {

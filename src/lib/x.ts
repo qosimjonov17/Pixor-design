@@ -63,7 +63,7 @@ type Syndication = {
 
 async function viaSyndication(id: string): Promise<XPost | null> {
   const res = await fetch(`${SYNDICATION}/tweet-result?id=${id}&lang=en&token=${syndicationToken(id)}`, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; PixoraBot/1.0)" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; PixorBot/1.0)" },
     signal: AbortSignal.timeout(12_000),
     cache: "no-store",
   });
@@ -111,7 +111,7 @@ type Fx = {
 
 async function viaFxtwitter(id: string): Promise<XPost | null> {
   const res = await fetch(`${FXTWITTER}/status/${id}`, {
-    headers: { "User-Agent": "PixoraBot/1.0" },
+    headers: { "User-Agent": "PixorBot/1.0" },
     signal: AbortSignal.timeout(12_000),
     cache: "no-store",
   });

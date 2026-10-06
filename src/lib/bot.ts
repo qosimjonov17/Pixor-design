@@ -33,7 +33,7 @@ import {
 } from "./works";
 
 /**
- * Pixora boti:
+ * Pixor boti:
  *  1) Admin havola yuboradi → bot nom, tavsif, muqova, dizaynerni oladi → qoralama + preview.
  *  2) Tugmalar: ✅ Chop etish (sayt + kanal), ✏️ tahrirlash, ❌ bekor qilish.
  */
@@ -90,7 +90,7 @@ export function channelCaption(row: WorkRow, descLimit = 550) {
 }
 
 export function channelKeyboard(row: WorkRow): InlineKeyboard {
-  return { inline_keyboard: [[{ text: "Pixora'da ko'rish", url: siteWorkUrl(row.id) }]] };
+  return { inline_keyboard: [[{ text: "Pixor'da ko'rish", url: siteWorkUrl(row.id) }]] };
 }
 
 /** Preview = kanal posti bilan bir xil matn; pastda faqat adminga eslatmalar */
@@ -102,7 +102,7 @@ function previewCaption(row: WorkRow) {
     notes.push(row.video_kind === "video" ? "🎬 Video (ovozli) — kanalga video bo'lib chiqadi." : "🎬 Video (ovozsiz) — kanalga GIF kabi chiqadi.");
   }
   if (row.categories) notes.push("📂 Kategoriya — pastdagi ☑️ tugmalar (bir nechtasini tanlash mumkin).");
-  notes.push("Kanalda pastda «Pixora'da ko'rish» tugmasi bo'ladi. Chiqarish uchun ✅ ni bosing.");
+  notes.push("Kanalda pastda «Pixor'da ko'rish» tugmasi bo'ladi. Chiqarish uchun ✅ ni bosing.");
   return `${channelCaption(row, 330)}\n\n— — —\n<i>${notes.join("\n")}</i>`;
 }
 
@@ -170,7 +170,7 @@ async function sendWorkMedia(chatId: number | string, row: WorkRow, caption: str
       return await tgUpload<{ message_id: number }>(method, { ...base, ...extra }, {
         field,
         bytes,
-        name: "pixora.mp4",
+        name: "pixor.mp4",
         type: "video/mp4",
       });
     } catch (err) {
@@ -190,7 +190,7 @@ async function sendWorkMedia(chatId: number | string, row: WorkRow, caption: str
     return tgUpload<{ message_id: number }>("sendPhoto", base, {
       field: "photo",
       bytes,
-      name: type === "image/png" ? "pixora.png" : "pixora.jpg",
+      name: type === "image/png" ? "pixor.png" : "pixor.jpg",
       type,
     });
   }
@@ -276,7 +276,7 @@ async function sendDesignerCard(chatId: number, d: DesignerRow) {
       : "🔗 Havolalar yo'q",
     d.bio ? `\n<blockquote expandable>${escapeHtml(clip(d.bio, 900))}</blockquote>` : "📝 Bio yo'q",
     "",
-    "<i>💡 Avtomatik olish: kompyuterda dizaynerning profil sahifasini ochib, «Pixora'ga qo'shish» tugmachasini bosing.</i>",
+    "<i>💡 Avtomatik olish: kompyuterda dizaynerning profil sahifasini ochib, «Pixor'ga qo'shish» tugmachasini bosing.</i>",
   ];
   return send(chatId, lines.join("\n"), {
     reply_markup: {
@@ -585,7 +585,7 @@ async function saveDraftAndPreview({ chatId, userId, url, platform, existing, da
   // Behance/Dribbble serverlarni bloklaydi — brauzer tugmachasi ishonchli yo'l
   const hint =
     missing.length && (platform === "behance" || platform === "dribbble")
-      ? `\n\n💡 ${getPlatform(platform).label} serverlarga ma'lumot bermaydi. Kompyuterda ish sahifasini ochib, brauzerdagi «Pixora'ga qo'shish» tugmachasini bosing: ${env.siteUrl}/admin/add`
+      ? `\n\n💡 ${getPlatform(platform).label} serverlarga ma'lumot bermaydi. Kompyuterda ish sahifasini ochib, brauzerdagi «Pixor'ga qo'shish» tugmachasini bosing: ${env.siteUrl}/admin/add`
       : "";
   if (!row.image_url && !row.video_url) {
     await setState(userId, row.id, "image");

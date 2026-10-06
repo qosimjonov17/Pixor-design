@@ -10,7 +10,7 @@ const googleSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Pixora — eng yaxshi dizayn ishlari bir joyda",
+  title: "Pixor — eng yaxshi dizayn ishlari bir joyda",
   description:
     "Behance, Dribbble, X va Dprofile'dagi eng yaxshi dizayn ishlari bitta toza va saralangan lentada.",
 };

@@ -214,7 +214,7 @@ export async function deleteImage(path: string | null) {
 /** Tashqi rasmni yuklab olib, o'zimizning saqlash joyimizga ko'chiradi */
 export async function copyRemoteImage(url: string) {
   const res = await fetch(url, {
-    headers: { "User-Agent": "Mozilla/5.0 (compatible; PixoraBot/1.0)", Accept: "image/*" },
+    headers: { "User-Agent": "Mozilla/5.0 (compatible; PixorBot/1.0)", Accept: "image/*" },
     signal: AbortSignal.timeout(15_000),
   });
   if (!res.ok) throw new Error(`Rasm yuklanmadi: ${res.status}`);
@@ -245,7 +245,7 @@ export async function copyRemoteVideo(urls: string[]) {
   for (const url of urls) {
     try {
       const res = await fetch(url, {
-        headers: { "User-Agent": "Mozilla/5.0 (compatible; PixoraBot/1.0)" },
+        headers: { "User-Agent": "Mozilla/5.0 (compatible; PixorBot/1.0)" },
         signal: AbortSignal.timeout(40_000),
       });
       if (!res.ok) throw new Error(`video yuklanmadi: ${res.status}`);

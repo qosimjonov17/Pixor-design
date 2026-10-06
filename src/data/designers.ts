@@ -11,7 +11,7 @@ export type Designer = {
   /** Platformadagi nik (@ belgisisiz) */
   handle?: string;
   platform?: Platform;
-  /** Pixora'ga tanlangan ishlari soni */
+  /** Pixor'ga tanlangan ishlari soni */
   picks: number;
   avatar?: string;
   avatarBg: "blue" | "red" | "yellow";

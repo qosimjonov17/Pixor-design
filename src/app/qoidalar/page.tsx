@@ -3,16 +3,16 @@ import PageShell from "@/components/PageShell";
 import { CONTACT_TELEGRAM_URL } from "@/data/contact";
 
 export const metadata: Metadata = {
-  title: "Qoidalar — Pixora",
-  description: "Pixora qanday ishlaydi: ishlar qanday tanlanadi, mualliflik huquqi va ishni olib tashlash.",
+  title: "Qoidalar — Pixor",
+  description: "Pixor qanday ishlaydi: ishlar qanday tanlanadi, mualliflik huquqi va ishni olib tashlash.",
 };
 
 const SECTIONS: { title: string; body: React.ReactNode }[] = [
   {
-    title: "Pixora nima",
+    title: "Pixor nima",
     body: (
       <p>
-        Pixora — Behance, Dribbble, X va Dprofile&apos;dagi eng yaxshi dizayn ishlarini bitta lentada
+        Pixor — Behance, Dribbble, X va Dprofile&apos;dagi eng yaxshi dizayn ishlarini bitta lentada
         yig&apos;adigan saralangan to&apos;plam. Biz ishlarni o&apos;zimiz yaratmaymiz va sotmaymiz: har bir ish
         muallifining asl sahifasiga havola bilan ko&apos;rsatiladi.
       </p>
@@ -22,7 +22,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: "Ishlar qanday tanlanadi",
     body: (
       <ul>
-        <li>Har bir ishni Pixora jamoasi qo&apos;lda ko&apos;rib chiqib tanlaydi.</li>
+        <li>Har bir ishni Pixor jamoasi qo&apos;lda ko&apos;rib chiqib tanlaydi.</li>
         <li>Ishlar Case, UI va Branding kategoriyalariga ajratiladi.</li>
         <li>Tanlov — bizning didimiz; tanlanmagan ish yomon degani emas.</li>
       </ul>
@@ -34,7 +34,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
       <ul>
         <li>Barcha ishlar va rasmlar ularning mualliflariga tegishli.</li>
         <li>Har bir ishda muallif ismi, profili va asl sahifaga havola ko&apos;rsatiladi.</li>
-        <li>Ishlarni Pixora&apos;dan yuklab olib, o&apos;zingizniki qilib ishlatmang.</li>
+        <li>Ishlarni Pixor&apos;dan yuklab olib, o&apos;zingizniki qilib ishlatmang.</li>
       </ul>
     ),
   },
@@ -42,7 +42,7 @@ const SECTIONS: { title: string; body: React.ReactNode }[] = [
     title: "Ishni olib tashlash yoki tuzatish",
     body: (
       <p>
-        Agar siz ish muallifi bo&apos;lsangiz va uni Pixora&apos;da ko&apos;rishni istamasangiz yoki ism, havola
+        Agar siz ish muallifi bo&apos;lsangiz va uni Pixor&apos;da ko&apos;rishni istamasangiz yoki ism, havola
         noto&apos;g&apos;ri bo&apos;lsa —{" "}
         <a href={CONTACT_TELEGRAM_URL} target="_blank" rel="noopener noreferrer" className="text-brand underline">
           bizga Telegram&apos;da yozing

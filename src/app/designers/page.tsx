@@ -5,7 +5,7 @@ import { avatarBgFor, type Designer } from "@/data/designers";
 import { getDesignersWithStats } from "@/lib/designers";
 
 export const metadata: Metadata = {
-  title: "Dizaynerlar Profili — Pixora",
+  title: "Dizaynerlar Profili — Pixor",
 };
 
 export default async function DesignersPage() {

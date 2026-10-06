@@ -23,7 +23,7 @@ const SOCIAL_ICON: Record<Platform, string> = {
 export async function generateMetadata({ params }: PageProps<"/designers/[slug]">): Promise<Metadata> {
   const designer = await getDesignerBySlug((await params).slug);
   return {
-    title: designer ? `${designer.name} — Pixora` : "Pixora",
+    title: designer ? `${designer.name} — Pixor` : "Pixor",
     description: designer?.bio?.slice(0, 160) || undefined,
   };
 }
